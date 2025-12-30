@@ -1,6 +1,5 @@
 /* This is the entry point for the Payload GraphQL API */
 import config from '@payload-config'
-import { GRAPHQL_POST, GRAPHQL_GET } from '@payloadcms/next/routes'
+import { GRAPHQL_POST } from '@payloadcms/next/routes'
 
 export const POST = GRAPHQL_POST(config)
-export const GET = GRAPHQL_GET(config)

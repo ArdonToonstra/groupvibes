@@ -24,6 +24,12 @@
     "paths": {
       "@/*": [
         "./src/*"
+      ],
+      "@payload-config": [
+        "./src/payload.config.ts"
+      ],
+      "@/payload-importmap": [
+        "./src/app/(payload)/admin/importMap.js"
       ]
     },
     "target": "ES2017"
