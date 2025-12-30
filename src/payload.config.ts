@@ -6,6 +6,9 @@ import { fileURLToPath } from 'url'
 import sharp from 'sharp'
 
 import { Users } from './collections/Users'
+import { Groups } from './collections/Groups'
+import { CheckIns } from './collections/CheckIns'
+import { PushSubscriptions } from './collections/PushSubscriptions'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -17,7 +20,7 @@ export default buildConfig({
       baseDir: path.resolve(dirname),
     },
   },
-  collections: [Users],
+  collections: [Users, Groups, CheckIns, PushSubscriptions],
   editor: lexicalEditor(),
   secret: process.env.PAYLOAD_SECRET || 'your-secret-key-here',
   typescript: {
