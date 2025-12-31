@@ -19,6 +19,9 @@ export default buildConfig({
     importMap: {
       baseDir: path.resolve(dirname),
     },
+    meta: {
+      titleSuffix: '- StateLink Admin',
+    },
   },
   collections: [Users, Groups, CheckIns, PushSubscriptions],
   editor: lexicalEditor(),

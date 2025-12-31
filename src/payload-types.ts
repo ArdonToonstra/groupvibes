@@ -131,10 +131,6 @@ export interface User {
    */
   displayName: string;
   /**
-   * Personal theme color (hex code)
-   */
-  themeColor: string;
-  /**
    * Group this user belongs to
    */
   groupID?: (number | null) | Group;
@@ -170,6 +166,10 @@ export interface Group {
    * Unique invite code for joining the group
    */
   inviteCode: string;
+  /**
+   * When the invite code was generated
+   */
+  inviteCodeCreated?: string | null;
   /**
    * Number of pings per day
    */
@@ -336,7 +336,6 @@ export interface PayloadMigration {
  */
 export interface UsersSelect<T extends boolean = true> {
   displayName?: T;
-  themeColor?: T;
   groupID?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -362,6 +361,7 @@ export interface UsersSelect<T extends boolean = true> {
 export interface GroupsSelect<T extends boolean = true> {
   name?: T;
   inviteCode?: T;
+  inviteCodeCreated?: T;
   frequency?: T;
   intervalMode?: T;
   quietHoursStart?: T;

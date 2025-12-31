@@ -48,6 +48,14 @@ export const Groups: CollectionConfig = {
       },
     },
     {
+      name: 'inviteCodeCreated',
+      type: 'date',
+      admin: {
+        description: 'When the invite code was generated',
+        readOnly: true,
+      },
+    },
+    {
       name: 'frequency',
       type: 'number',
       required: true,

@@ -15,15 +15,7 @@ export const Users: CollectionConfig = {
         description: 'Display name shown to group members',
       },
     },
-    {
-      name: 'themeColor',
-      type: 'text',
-      required: true,
-      defaultValue: '#3B82F6',
-      admin: {
-        description: 'Personal theme color (hex code)',
-      },
-    },
+
     {
       name: 'groupID',
       type: 'relationship',

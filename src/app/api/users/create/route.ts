@@ -39,7 +39,6 @@ export async function POST(request: Request) {
         email,
         password,
         displayName,
-        themeColor: '#3B82F6', // Default blue, changable in settings
       },
     })
 

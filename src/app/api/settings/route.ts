@@ -15,7 +15,7 @@ export async function GET(request: Request) {
         const user = await payload.findByID({ collection: 'users', id: userId })
         if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 })
 
-        let group = null
+        let group: any = null
         if (user.groupID) {
             const gid = typeof user.groupID === 'object' ? user.groupID.id : user.groupID
             group = await payload.findByID({ collection: 'groups', id: gid as unknown as number })

@@ -7,15 +7,13 @@ import { CONTEXT_TAGS } from "@/lib/utils"
 export interface TagSelectorProps {
   selectedTags: string[]
   onChange: (tags: string[]) => void
-  themeColor?: string
   className?: string
 }
 
-export function TagSelector({ 
-  selectedTags, 
-  onChange, 
-  themeColor = "#3B82F6",
-  className 
+export function TagSelector({
+  selectedTags,
+  onChange,
+  className
 }: TagSelectorProps) {
   const toggleTag = (tag: string) => {
     if (selectedTags.includes(tag)) {
@@ -42,17 +40,9 @@ export function TagSelector({
                 "px-4 py-2 rounded-full text-sm font-medium transition-all",
                 "border-2",
                 isSelected
-                  ? "text-white shadow-md"
+                  ? "border-blue-500 bg-blue-500 text-white shadow-md"
                   : "border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-gray-400 dark:hover:border-gray-600"
               )}
-              style={
-                isSelected
-                  ? {
-                      backgroundColor: themeColor,
-                      borderColor: themeColor,
-                    }
-                  : {}
-              }
             >
               {tag}
             </button>

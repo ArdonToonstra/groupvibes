@@ -92,7 +92,7 @@ export default function GroupStatsPage() {
 
                                 {checkin.customNote && (
                                     <p className="text-gray-600 dark:text-gray-300 mb-4 bg-gray-50 dark:bg-gray-900/50 p-3 rounded-xl text-sm italic">
-                                        "{checkin.customNote}"
+                                        &quot;{checkin.customNote}&quot;
                                     </p>
                                 )}
 

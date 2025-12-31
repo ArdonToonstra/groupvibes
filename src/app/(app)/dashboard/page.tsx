@@ -27,6 +27,13 @@ export default function DashboardPage() {
     const fetchData = async () => {
       try {
         const res = await fetch(`/api/dashboard?userId=${userId}`)
+        
+        if (res.status === 404) {
+          localStorage.removeItem('statelink_user_id')
+          router.push('/onboarding')
+          return
+        }
+
         if (!res.ok) throw new Error('Failed to fetch')
         const json = await res.json()
         // Check if user has no group (should handle in UI)

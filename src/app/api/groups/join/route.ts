@@ -31,7 +31,35 @@ export async function POST(request: Request) {
       )
     }
 
-    const group = groups.docs[0]
+    const group = groups.docs[0] as any
+
+    // Check for expiration (7 days)
+    if (group.inviteCodeCreated) {
+      const createdTime = new Date(group.inviteCodeCreated).getTime()
+      const now = new Date().getTime()
+      const oneWeekMs = 7 * 24 * 60 * 60 * 1000
+
+      if (now - createdTime > oneWeekMs) {
+        return NextResponse.json(
+          { error: 'Invite code has expired (valid for 7 days)' },
+          { status: 410 } // Gone
+        )
+      }
+    } else {
+      // Migration support: If no creation date, assume valid? 
+      // Or set it to now? For minimal friction, let's treat old codes as valid 
+      // OR invalid? 
+      // Let's treat as valid but maybe trigger an update?
+      // Actually, safer to treat as "Expired" to force regeneration if we want strict security,
+      // BUT for UX, let's treat it as valid and maybe update the date to now to start the clock?
+      // Let's treating it as "Exipred" to be clean, user can just ask owner to regenerate.
+      // Actually, user requested "New ones are generated".
+      // Let's assume expired if null to enforce the new system.
+      return NextResponse.json(
+        { error: 'Invite code is old/invalid. Please ask the group owner to regenerate it.' },
+        { status: 410 }
+      )
+    }
 
     // Update user's groupID
     await payload.update({

@@ -1,13 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
 import { ArrowLeft, Download, Trash2, User, Users, Copy, Check, LogOut, Loader2, LogOut as LeaveIcon } from 'lucide-react'
 
-export default function SettingsPage() {
+function SettingsContent() {
     const router = useRouter()
     const searchParams = useSearchParams()
 
@@ -190,8 +190,8 @@ export default function SettingsPage() {
                     <button
                         onClick={() => setActiveTab('profile')}
                         className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-semibold rounded-lg transition-all ${activeTab === 'profile'
-                                ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
-                                : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                            ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                            : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
                             }`}
                     >
                         <User className="w-4 h-4" />
@@ -202,8 +202,8 @@ export default function SettingsPage() {
                         <button
                             onClick={() => setActiveTab('group')}
                             className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-semibold rounded-lg transition-all ${activeTab === 'group'
-                                    ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
-                                    : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                                ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                                : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
                                 }`}
                         >
                             <Users className="w-4 h-4" />
@@ -272,7 +272,7 @@ export default function SettingsPage() {
                                 <Download className="w-5 h-5 text-gray-500" />
                                 <div className="text-left">
                                     <div className="font-semibold text-gray-700 dark:text-gray-200">Download my data</div>
-                                    <div className="text-xs text-gray-400 font-normal">Get a copy of everything you've shared</div>
+                                    <div className="text-xs text-gray-400 font-normal">Get a copy of everything you&apos;ve shared</div>
                                 </div>
                             </Button>
 
@@ -313,13 +313,72 @@ export default function SettingsPage() {
                                 <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">
                                     Invite Code
                                 </label>
-                                <div className="flex gap-2">
-                                    <div className="flex-1 h-12 bg-gray-50 dark:bg-gray-900 rounded-lg flex items-center px-4 font-mono font-bold tracking-widest text-gray-700 dark:text-gray-300">
-                                        {group.inviteCode}
+                                <div className="flex flex-col gap-2">
+                                    <div className="flex gap-2">
+                                        <div className="flex-1 h-12 bg-gray-50 dark:bg-gray-900 rounded-lg flex items-center px-4 font-mono font-bold tracking-widest text-gray-700 dark:text-gray-300">
+                                            {group.inviteCode}
+                                        </div>
+                                        <Button onClick={handleCopyCode} variant={copied ? "default" : "outline"} className="h-12 w-12 rounded-lg p-0 flex items-center justify-center">
+                                            {copied ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
+                                        </Button>
                                     </div>
-                                    <Button onClick={handleCopyCode} variant={copied ? "default" : "outline"} className="h-12 w-12 rounded-lg p-0 flex items-center justify-center">
-                                        {copied ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
-                                    </Button>
+
+                                    <div className="flex justify-between items-start">
+                                        <div className="text-xs text-gray-500 mt-1">
+                                            {(() => {
+                                                if (!group.inviteCodeCreated) return <span className="text-red-500">Expired (Old Code)</span>
+
+                                                const created = new Date(group.inviteCodeCreated).getTime()
+                                                const now = new Date().getTime()
+                                                const expires = created + (7 * 24 * 60 * 60 * 1000)
+                                                const diff = expires - now
+
+                                                if (diff <= 0) return <span className="text-red-500">Expired</span>
+
+                                                const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+                                                const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
+
+                                                return <span>Expires in {days}d {hours}h</span>
+                                            })()}
+                                        </div>
+
+                                        {user.isGroupOwner && (
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="text-primary h-auto p-0 hover:bg-transparent hover:underline"
+                                                onClick={async () => {
+                                                    console.log("Regenerate clicked")
+                                                    if (!window.confirm("Generate a new invite code? The old one will stop working immediately.")) {
+                                                        console.log("Cancelled")
+                                                        return
+                                                    }
+                                                    console.log("Confirmed")
+                                                    const userId = localStorage.getItem('statelink_user_id')
+                                                    try {
+                                                        const res = await fetch('/api/groups/regenerate', {
+                                                            method: 'POST',
+                                                            body: JSON.stringify({ userId, groupId: group.id })
+                                                        })
+                                                        if (res.ok) {
+                                                            const data = await res.json()
+                                                            setGroup({
+                                                                ...group,
+                                                                inviteCode: data.inviteCode,
+                                                                inviteCodeCreated: data.inviteCodeCreated
+                                                            })
+                                                            alert("New invite code generated!")
+                                                        } else {
+                                                            alert("Failed to generate code")
+                                                        }
+                                                    } catch (e) { console.error(e); alert("Error generating code") }
+                                                }}
+
+                                            >
+                                                Regenerate Code
+                                            </Button>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         </Card>
@@ -380,5 +439,13 @@ export default function SettingsPage() {
 
             </div>
         </div>
+    )
+}
+
+export default function SettingsPage() {
+    return (
+        <Suspense fallback={<div className="p-10 text-center">Loading settings...</div>}>
+            <SettingsContent />
+        </Suspense>
     )
 }

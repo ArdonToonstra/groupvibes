@@ -8,9 +8,8 @@ The app's core UI acts as a neutral stage to let the user's personal data and th
   - **Dark Mode Background:** "Deep Charcoal" (`#121212`) – Reduces eye strain, avoids harsh pure black.
   - **Surface Colors:** Slightly lighter/darker shades for cards and modals to create depth.
 - **User Themes:**
-  - Users select a **Personal Theme Color** during onboarding.
-  - This color is applied to their **Avatar Ring**, **Sparkline Graph**, **Active UI Elements**, and **Name** in the group feed.
-  - *Result:* The group feed becomes a vibrant, personalized data dashboard.
+  - *Deprecated:* Personal theme color selection has been removed.
+
 
 ## 2. Typography: "System & Mono"
 A blend of native familiarity and technical precision.
@@ -43,7 +42,7 @@ The main view is a vertical feed of live status cards.
 
 ## 5. Context Tags UI
 - **Selection:** Large, tappable "Pills" or "Chips" during the check-in flow.
-- **Active State:** Selected tags fill with the user's **Personal Theme Color**.
+- **Active State:** Selected tags fill with the app's primary color.
 - **Iconography:** Simple, stroke-based icons (e.g., *Lucide* or *Heroicons*) inside tags for instant visual recognition.
 
 ## 6. Motion & Micro-interactions

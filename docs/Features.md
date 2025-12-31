@@ -2,12 +2,13 @@
 
 ---
 
+- copy group link under share button, should give a link with the group code to sign up.
+
 ## Authentication & Onboarding
 
 - **Magic Link Sign-In:** Passwordless entry using secure, one-time email links.
 - **User Onboarding:**
   - Set display name
-  - Select personal theme color
   - Join group via invite code or create new group
 - **Permissions:** Prompt for browser push notifications on first login
 - **Account Management:**
