@@ -1,19 +1,33 @@
 import { NextResponse } from 'next/server'
 import { getPayload } from 'payload'
 import config from '@/payload.config'
+import { getAuthenticatedUser } from '@/lib/auth'
+
 // Helper to generate a short manageable code
 const generateInviteCode = () => {
     return crypto.randomUUID().substring(0, 6).toUpperCase()
 }
 
 export async function POST(request: Request) {
-    try {
-        const payload = await getPayload({ config })
-        const { userId, groupId } = await request.json()
+    // Get authenticated user from JWT token
+    const authenticatedUser = await getAuthenticatedUser()
+    
+    if (!authenticatedUser) {
+        return NextResponse.json(
+            { error: 'Unauthorized - Please log in' },
+            { status: 401 }
+        )
+    }
 
-        if (!userId || !groupId) {
+    const payload = await getPayload({ config })
+    const userId = authenticatedUser.id
+
+    try {
+        const { groupId } = await request.json()
+
+        if (!groupId) {
             return NextResponse.json(
-                { error: 'User ID and Group ID are required' },
+                { error: 'Group ID is required' },
                 { status: 400 }
             )
         }
@@ -28,13 +42,14 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Group not found' }, { status: 404 })
         }
 
-        // Robust check for ownership
+        // Verify ownership
         const createdBy = typeof group.createdBy === 'object' ? group.createdBy.id : group.createdBy
 
-        // We can also verify against the user making the request if we fetched the user,
-        // but the payload user session should be ideal. For now using ID check.
         if (String(createdBy) !== String(userId)) {
-            return NextResponse.json({ error: 'Unauthorized: Only the group owner can regenerate invite codes' }, { status: 403 })
+            return NextResponse.json(
+                { error: 'Unauthorized: Only the group owner can regenerate invite codes' },
+                { status: 403 }
+            )
         }
 
         // Generate new code

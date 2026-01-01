@@ -14,7 +14,7 @@ export async function POST(request: Request) {
       )
     }
 
-    // Check if user with email already exists (Payload create might throw, so we can try/catch wrapper or check first)
+    // Check if user with email already exists
     const existingUsers = await payload.find({
       collection: 'users',
       where: {
@@ -42,7 +42,35 @@ export async function POST(request: Request) {
       },
     })
 
-    return NextResponse.json({ user })
+    // Log the user in automatically after creation
+    const loginResult = await payload.login({
+      collection: 'users',
+      data: {
+        email,
+        password,
+      },
+    })
+
+    const response = NextResponse.json({
+      user: {
+        id: user.id,
+        email: user.email,
+        displayName: user.displayName,
+      },
+    })
+
+    // Set the JWT token in an HTTP-only cookie
+    if (loginResult?.token) {
+      response.cookies.set('payload-token', loginResult.token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: loginResult.exp || 7200,
+      })
+    }
+
+    return response
   } catch (error) {
     console.error('Error creating user:', error)
     return NextResponse.json(

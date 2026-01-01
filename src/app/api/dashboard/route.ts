@@ -1,15 +1,21 @@
 import { getPayload } from 'payload'
 import config from '@payload-config'
 import { NextResponse } from 'next/server'
+import { getAuthenticatedUser } from '@/lib/auth'
 
 export async function GET(request: Request) {
-    const payload = await getPayload({ config })
-    const { searchParams } = new URL(request.url)
-    const userId = searchParams.get('userId')
-
-    if (!userId) {
-        return NextResponse.json({ error: 'Missing userId' }, { status: 400 })
+    // Get authenticated user from JWT token
+    const authenticatedUser = await getAuthenticatedUser()
+    
+    if (!authenticatedUser) {
+        return NextResponse.json(
+            { error: 'Unauthorized - Please log in' },
+            { status: 401 }
+        )
     }
+
+    const payload = await getPayload({ config })
+    const userId = authenticatedUser.id
 
     try {
         // 1. Get User and Group Info

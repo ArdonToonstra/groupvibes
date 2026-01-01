@@ -1,15 +1,28 @@
 import { NextResponse } from 'next/server'
 import { getPayload } from 'payload'
 import config from '@/payload.config'
+import { getAuthenticatedUser } from '@/lib/auth'
 
 export async function POST(request: Request) {
-  try {
-    const payload = await getPayload({ config })
-    const { inviteCode, userId } = await request.json()
+  // Get authenticated user from JWT token
+  const authenticatedUser = await getAuthenticatedUser()
+  
+  if (!authenticatedUser) {
+    return NextResponse.json(
+      { error: 'Unauthorized - Please log in' },
+      { status: 401 }
+    )
+  }
 
-    if (!inviteCode || !userId) {
+  const payload = await getPayload({ config })
+  const userId = authenticatedUser.id
+
+  try {
+    const { inviteCode } = await request.json()
+
+    if (!inviteCode) {
       return NextResponse.json(
-        { error: 'Invite code and userId are required' },
+        { error: 'Invite code is required' },
         { status: 400 }
       )
     }
@@ -46,15 +59,7 @@ export async function POST(request: Request) {
         )
       }
     } else {
-      // Migration support: If no creation date, assume valid? 
-      // Or set it to now? For minimal friction, let's treat old codes as valid 
-      // OR invalid? 
-      // Let's treat as valid but maybe trigger an update?
-      // Actually, safer to treat as "Expired" to force regeneration if we want strict security,
-      // BUT for UX, let's treat it as valid and maybe update the date to now to start the clock?
-      // Let's treating it as "Exipred" to be clean, user can just ask owner to regenerate.
-      // Actually, user requested "New ones are generated".
-      // Let's assume expired if null to enforce the new system.
+      // If no creation date, treat as expired to enforce the new system
       return NextResponse.json(
         { error: 'Invite code is old/invalid. Please ask the group owner to regenerate it.' },
         { status: 410 }
