@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getPayload } from 'payload'
-import config from '@/payload.config'
+import config from '@payload-config'
 import { getAuthenticatedUser } from '@/lib/auth'
 
 export async function POST(request: Request) {

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getPayload } from 'payload'
-import config from '@/payload.config'
+import config from '@payload-config'
 import { generateInviteCode } from '@/lib/utils'
 import { getAuthenticatedUser } from '@/lib/auth'
 

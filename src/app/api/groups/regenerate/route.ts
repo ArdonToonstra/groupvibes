@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getPayload } from 'payload'
-import config from '@/payload.config'
+import config from '@payload-config'
 import { getAuthenticatedUser } from '@/lib/auth'
 
 // Helper to generate a short manageable code

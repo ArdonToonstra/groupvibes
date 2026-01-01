@@ -1,7 +1,13 @@
 import { getPayload } from 'payload'
-import config from '@/payload.config'
+import config from '@payload-config'
 import { cookies } from 'next/headers'
 import jwt from 'jsonwebtoken'
+
+interface JWTPayload {
+  id: string | number
+  collection: 'users'
+  email: string
+}
 
 /**
  * Get authenticated user from request
@@ -18,17 +24,22 @@ export async function getAuthenticatedUser() {
       return null
     }
 
+    // Get the secret from environment - fail if not set
+    const secret = process.env.PAYLOAD_SECRET
+    if (!secret) {
+      throw new Error('PAYLOAD_SECRET environment variable is not set')
+    }
+
     // Verify and decode the JWT token
-    const secret = process.env.PAYLOAD_SECRET || 'your-secret-key-here'
-    const decoded = jwt.verify(token, secret) as any
+    const decoded = jwt.verify(token, secret) as JWTPayload
     
-    if (!decoded || !decoded.id || !decoded.collection) {
+    if (!decoded || !decoded.id || decoded.collection !== 'users') {
       return null
     }
 
     // Fetch the user from the database using the ID from the token
     const user = await payload.findByID({
-      collection: decoded.collection,
+      collection: 'users',
       id: decoded.id,
     })
     
