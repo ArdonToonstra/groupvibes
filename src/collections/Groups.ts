@@ -107,4 +107,5 @@ export const Groups: CollectionConfig = {
       },
     },
   ],
+  timestamps: true,
 }
