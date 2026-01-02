@@ -42,10 +42,12 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Group not found' }, { status: 404 })
         }
 
-        // Verify ownership
-        const createdBy = typeof group.createdBy === 'object' ? group.createdBy.id : group.createdBy
+        const createdById = Number(createdBy)
+        const requestUserId = Number(userId)
 
-        if (String(createdBy) !== String(userId)) {
+        // We can also verify against the user making the request if we fetched the user,
+        // but the payload user session should be ideal. For now using ID check.
+        if (Number.isNaN(createdById) || Number.isNaN(requestUserId) || createdById !== requestUserId) {
             return NextResponse.json(
                 { error: 'Unauthorized: Only the group owner can regenerate invite codes' },
                 { status: 403 }
