@@ -3,11 +3,26 @@ import type { CollectionConfig } from 'payload'
 export const Users: CollectionConfig = {
   slug: 'users',
   admin: {
-    useAsTitle: 'email',
+    useAsTitle: 'displayName',
   },
   auth: true,
   fields: [
-    // Email is added by default
-    // Add more fields as needed
+    {
+      name: 'displayName',
+      type: 'text',
+      required: true,
+      admin: {
+        description: 'Display name shown to group members',
+      },
+    },
+
+    {
+      name: 'groupID',
+      type: 'relationship',
+      relationTo: 'groups',
+      admin: {
+        description: 'Group this user belongs to',
+      },
+    },
   ],
 }

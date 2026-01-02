@@ -1,18 +1,32 @@
+'use client'
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { Zap, Loader2 } from 'lucide-react'
+
 export default function Home() {
+  const router = useRouter()
+
+  useEffect(() => {
+    // Redirect logic
+    router.push('/onboarding')
+  }, [router])
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <h1 className="text-4xl font-bold">Statelink</h1>
-        <p className="text-lg">Welcome to your group vibe check app.</p>
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="/admin"
-          >
-            Go to Admin
-          </a>
+    <div suppressHydrationWarning className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="flex flex-col items-center gap-4">
+        <div className="bg-primary/10 p-4 rounded-2xl animate-pulse">
+          <Zap className="w-12 h-12 text-primary" />
         </div>
-      </main>
+        <div className="text-center space-y-2">
+          <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-400">
+            StateLink
+          </h1>
+          <div className="flex items-center justify-center gap-2 text-sm text-gray-500 animate-in fade-in">
+            <Loader2 className="w-3 h-3 animate-spin" />
+            <span>Initializing...</span>
+          </div>
+        </div>
+      </div>
     </div>
-  );
+  )
 }
