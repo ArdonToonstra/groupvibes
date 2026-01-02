@@ -1,31 +1,37 @@
 import { getPayload } from 'payload'
 import config from '@payload-config'
 import { NextResponse } from 'next/server'
+import { getAuthenticatedUser } from '@/lib/auth'
 
 export async function GET(request: Request) {
+    // Get authenticated user from JWT token
+    const authenticatedUser = await getAuthenticatedUser()
+    
+    if (!authenticatedUser) {
+        return NextResponse.json(
+            { error: 'Unauthorized - Please log in' },
+            { status: 401 }
+        )
+    }
+
     const payload = await getPayload({ config })
     const { searchParams } = new URL(request.url)
-    const userId = searchParams.get('userId')
-    const groupId = searchParams.get('groupId')
-
     const scope = searchParams.get('scope')
+    const userId = authenticatedUser.id
 
     try {
         let where: any = {}
 
-        if (scope === 'group' && userId) {
+        if (scope === 'group') {
             // Find user's group first
             const user = await payload.findByID({ collection: 'users', id: userId })
             if (!user || !user.groupID) return NextResponse.json([])
 
             const gId = typeof user.groupID === 'object' ? user.groupID.id : user.groupID
             where.groupID = { equals: gId }
-        } else if (userId) {
-            where.user = { equals: userId }
-        } else if (groupId) {
-            where.groupID = { equals: groupId }
         } else {
-            return NextResponse.json({ error: 'Missing userId or groupId' }, { status: 400 })
+            // Default to user's own check-ins
+            where.user = { equals: userId }
         }
 
         const checkins = await payload.find({
@@ -44,14 +50,25 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+    // Get authenticated user from JWT token
+    const authenticatedUser = await getAuthenticatedUser()
+    
+    if (!authenticatedUser) {
+        return NextResponse.json(
+            { error: 'Unauthorized - Please log in' },
+            { status: 401 }
+        )
+    }
+
     const payload = await getPayload({ config })
+    const userId = authenticatedUser.id
 
     try {
         const body = await request.json()
-        const { userId, vibeScore, tags, customNote } = body
+        const { vibeScore, tags, customNote } = body
 
-        if (!userId || !vibeScore) {
-            return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+        if (!vibeScore) {
+            return NextResponse.json({ error: 'Missing required field: vibeScore' }, { status: 400 })
         }
 
         // Get user to find groupID
@@ -64,11 +81,7 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'User not found or not in a group' }, { status: 404 })
         }
 
-        // Create Checkin
-        // Note: 'tags' in schema is an array of objects { tag: string }, handled by frontend or here?
-        // Frontend sends: string[] usually. Schema says: array of fields [ { name: 'tag', type: 'text' } ]
-        // So Payload expects: [ { tag: 'Work' }, { tag: 'Tired' } ]
-
+        // Format tags for Payload
         const formattedTags = Array.isArray(tags)
             ? tags.map((t: string | { tag: string }) => typeof t === 'string' ? { tag: t } : t)
             : []
@@ -76,13 +89,13 @@ export async function POST(request: Request) {
         const checkin = await payload.create({
             collection: 'checkins',
             data: {
-                user: Number(userId), // Ensure runtime number
+                user: Number(userId),
                 groupID: (typeof user.groupID === 'object' ? user.groupID.id : user.groupID) as any,
                 vibeScore,
                 tags: formattedTags,
                 customNote,
             },
-            overrideAccess: true, // Needed because we are creating on behalf of user via API without full req context sometimes
+            overrideAccess: true,
         })
 
         return NextResponse.json(checkin)

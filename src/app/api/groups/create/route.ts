@@ -1,16 +1,29 @@
 import { NextResponse } from 'next/server'
 import { getPayload } from 'payload'
-import config from '@/payload.config'
+import config from '@payload-config'
 import { generateInviteCode } from '@/lib/utils'
+import { getAuthenticatedUser } from '@/lib/auth'
 
 export async function POST(request: Request) {
-  try {
-    const payload = await getPayload({ config })
-    const { name, userId } = await request.json()
+  // Get authenticated user from JWT token
+  const authenticatedUser = await getAuthenticatedUser()
+  
+  if (!authenticatedUser) {
+    return NextResponse.json(
+      { error: 'Unauthorized - Please log in' },
+      { status: 401 }
+    )
+  }
 
-    if (!name || !userId) {
+  const payload = await getPayload({ config })
+  const userId = authenticatedUser.id
+
+  try {
+    const { name } = await request.json()
+
+    if (!name) {
       return NextResponse.json(
-        { error: 'Name and userId are required' },
+        { error: 'Name is required' },
         { status: 400 }
       )
     }
@@ -43,6 +56,7 @@ export async function POST(request: Request) {
       data: {
         name,
         inviteCode,
+        inviteCodeCreated: new Date().toISOString(),
         createdBy: userId,
         frequency: 2,
         intervalMode: 'random',

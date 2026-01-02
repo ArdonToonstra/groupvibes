@@ -1,15 +1,21 @@
 import { getPayload } from 'payload'
 import config from '@payload-config'
 import { NextResponse } from 'next/server'
+import { getAuthenticatedUser } from '@/lib/auth'
 
 export async function GET(request: Request) {
-    const payload = await getPayload({ config })
-    const { searchParams } = new URL(request.url)
-    const userId = searchParams.get('userId')
-
-    if (!userId) {
-        return NextResponse.json({ error: 'Missing userId' }, { status: 400 })
+    // Get authenticated user from JWT token
+    const authenticatedUser = await getAuthenticatedUser()
+    
+    if (!authenticatedUser) {
+        return NextResponse.json(
+            { error: 'Unauthorized - Please log in' },
+            { status: 401 }
+        )
     }
+
+    const payload = await getPayload({ config })
+    const userId = authenticatedUser.id
 
     try {
         const user = await payload.findByID({ collection: 'users', id: userId })
@@ -56,13 +62,20 @@ export async function GET(request: Request) {
 }
 
 export async function PUT(request: Request) {
+    // Get authenticated user from JWT token
+    const authenticatedUser = await getAuthenticatedUser()
+    
+    if (!authenticatedUser) {
+        return NextResponse.json(
+            { error: 'Unauthorized - Please log in' },
+            { status: 401 }
+        )
+    }
+
     const payload = await getPayload({ config })
+    const userId = authenticatedUser.id
     const body = await request.json()
-    const { userId, type, data } = body
-
-    // type: 'profile' | 'group' | 'leave_group'
-
-    if (!userId) return NextResponse.json({ error: 'Missing userId' }, { status: 400 })
+    const { type, data } = body
 
     try {
         if (type === 'profile') {
@@ -89,13 +102,27 @@ export async function PUT(request: Request) {
             if (!user.groupID) return NextResponse.json({ error: 'No group' }, { status: 400 })
             const gId = typeof user.groupID === 'object' ? user.groupID.id : user.groupID
 
-            // Verify Owner
-            // For now assume logic checks or we check valid member. 
-            // Ideally check owner.
+            // Verify user is the group owner
+            const group = await payload.findByID({ collection: 'groups', id: gId as unknown as number })
+            const groupOwnerId = typeof group.createdBy === 'object' ? group.createdBy.id : group.createdBy
+            
+            if (userId !== groupOwnerId) {
+                return NextResponse.json(
+                    { error: 'Only the group owner can perform this action' },
+                    { status: 403 }
+                )
+            }
 
             const { name, removeMemberId } = data
 
             if (removeMemberId) {
+                // Prevent owner from removing themselves
+                if (removeMemberId === userId) {
+                    return NextResponse.json(
+                        { error: 'Group owner cannot remove themselves. Use leave_group instead.' },
+                        { status: 400 }
+                    )
+                }
                 // Remove member logic: Set their groupID to null
                 await payload.update({
                     collection: 'users',

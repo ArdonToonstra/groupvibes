@@ -22,40 +22,41 @@ export async function POST(request: Request) {
                 email,
                 password,
             },
-            // Note: In local API mode, payload.login usually doesn't set browser cookies automatically unless specifically configured/handled
-            // If we need the token, we can get it. payload.login returns { user, token, exp }
         })
 
-        if (!result) {
+        if (!result || !result.token) {
             return NextResponse.json(
                 { error: 'Invalid credentials' },
                 { status: 401 }
             )
         }
 
-        // In a custom Next.js route, we might need to set the cookie manually if Payload doesn't do it via headers here.
-        // However, payload.login does NOT set the cookie on the response object of this Next.js route automatically because it doesn't know about `NextResponse`.
-        // We should return the user. The frontend can store the user state.
-        // For a robust app, we'd set the 'payload-token' cookie here.
-
-        // For this prototype/MVP, we'll return the user and let the frontend assume success. 
-        // Ideally we set the cookie for subsequent requests.
-
+        // Set the JWT token in an HTTP-only cookie for security
+        // This prevents XSS attacks as JavaScript cannot access the cookie
         const response = NextResponse.json({
-            user: result.user,
+            user: {
+                id: result.user.id,
+                email: result.user.email,
+                displayName: result.user.displayName,
+            },
             message: 'Login successful'
         })
 
-        // If we had the token, we could set it:
-        // response.cookies.set('payload-token', result.token!, { httpOnly: true, path: '/' })
-        // But result.token requires getting token back.
+        // Set the payload-token cookie with secure settings
+        response.cookies.set('payload-token', result.token, {
+            httpOnly: true, // Prevents XSS attacks
+            secure: process.env.NODE_ENV === 'production', // HTTPS only in production
+            sameSite: 'lax', // CSRF protection
+            path: '/',
+            maxAge: result.exp || 7200, // Use token expiration or default to 2 hours
+        })
 
         return response
 
     } catch (error) {
         console.error('Error logging in:', error)
         return NextResponse.json(
-            { error: 'Invalid email or password' }, // Generic error for security, or catch specific Payload errors
+            { error: 'Invalid email or password' }, // Generic error for security
             { status: 401 }
         )
     }
