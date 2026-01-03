@@ -5,7 +5,90 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
-import { ArrowLeft, Download, Trash2, User, Users, Copy, Check, LogOut, Loader2, LogOut as LeaveIcon } from 'lucide-react'
+import { ArrowLeft, Download, Trash2, User, Users, Copy, Check, LogOut, Loader2, LogOut as LeaveIcon, RefreshCw, AlertCircle } from 'lucide-react'
+
+// Sub-component for regeneration button state
+function RegenerateButton({ group, onUpdate }: { group: any, onUpdate: (g: any) => void }) {
+    const [status, setStatus] = useState<'idle' | 'confirm' | 'generating'>('idle')
+
+    const handleClick = async (e: React.MouseEvent) => {
+        // Prevent any default behavior immediately
+        e.preventDefault()
+        e.stopPropagation()
+
+        if (status === 'idle') {
+            setStatus('confirm')
+            // Reset after 3 seconds if not confirmed
+            setTimeout(() => {
+                setStatus(prev => prev === 'confirm' ? 'idle' : prev)
+            }, 3000)
+            return
+        }
+
+        if (status === 'confirm') {
+            setStatus('generating')
+            try {
+                const res = await fetch('/api/groups/regenerate', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ groupId: group.id })
+                })
+
+                if (res.ok) {
+                    const data = await res.json()
+                    onUpdate({
+                        ...group,
+                        inviteCode: data.inviteCode,
+                        inviteCodeCreated: data.inviteCodeCreated
+                    })
+                    // Success feedback
+                } else {
+                    alert("Failed to generate code")
+                }
+            } catch (e) {
+                console.error(e)
+                alert("Error generating code")
+            } finally {
+                setStatus('idle')
+            }
+        }
+    }
+
+    if (status === 'generating') {
+        return (
+            <Button variant="ghost" size="sm" disabled className="text-gray-400 gap-2 h-auto p-0">
+                <Loader2 className="w-3 h-3 animate-spin" /> Generating...
+            </Button>
+        )
+    }
+
+    if (status === 'confirm') {
+        return (
+            <Button
+                variant="outline"
+                size="sm"
+                onClick={handleClick}
+                className="text-red-500 border-red-200 bg-red-50 hover:bg-red-100 hover:text-red-600 animate-in fade-in zoom-in duration-200 h-9 px-3 gap-2"
+            >
+                <AlertCircle className="w-4 h-4" />
+                Confirm
+            </Button>
+        )
+    }
+
+    return (
+        <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleClick}
+            className="text-gray-400 hover:text-primary hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg w-9 h-9 transition-all"
+            title="Regenerate Invite Code"
+        >
+            <RefreshCw className="w-4 h-4" />
+        </Button>
+    )
+}
 
 function SettingsContent() {
     const router = useRouter()
@@ -59,7 +142,8 @@ function SettingsContent() {
 
     const handleCopyCode = () => {
         if (!group) return
-        navigator.clipboard.writeText(group.inviteCode)
+        const link = `${window.location.origin}/onboarding?code=${group.inviteCode}`
+        navigator.clipboard.writeText(link)
         setCopied(true)
         setTimeout(() => setCopied(false), 2000)
     }
@@ -365,12 +449,15 @@ function SettingsContent() {
                                         <Button onClick={handleCopyCode} variant={copied ? "default" : "outline"} className="h-12 w-12 rounded-lg p-0 flex items-center justify-center">
                                             {copied ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
                                         </Button>
+                                        {user.isGroupOwner && (
+                                            <RegenerateButton group={group} onUpdate={(updatedGroup) => setGroup(updatedGroup)} />
+                                        )}
                                     </div>
 
-                                    <div className="flex justify-between items-start">
-                                        <div className="text-xs text-gray-500 mt-1">
+                                    <div className="flex justify-between items-center mt-2">
+                                        <div className="text-xs text-gray-500">
                                             {(() => {
-                                                if (!group.inviteCodeCreated) return <span className="text-red-500">Expired (Old Code)</span>
+                                                if (!group.inviteCodeCreated) return null
 
                                                 const created = new Date(group.inviteCodeCreated).getTime()
                                                 const now = new Date().getTime()
@@ -385,44 +472,6 @@ function SettingsContent() {
                                                 return <span>Expires in {days}d {hours}h</span>
                                             })()}
                                         </div>
-
-                                        {user.isGroupOwner && (
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="text-primary h-auto p-0 hover:bg-transparent hover:underline"
-                                                onClick={async () => {
-                                                    console.log("Regenerate clicked")
-                                                    if (!window.confirm("Generate a new invite code? The old one will stop working immediately.")) {
-                                                        console.log("Cancelled")
-                                                        return
-                                                    }
-                                                    console.log("Confirmed")
-                                                    try {
-                                                        const res = await fetch('/api/groups/regenerate', {
-                                                            method: 'POST',
-                                                            credentials: 'include',
-                                                            headers: { 'Content-Type': 'application/json' },
-                                                            body: JSON.stringify({ groupId: group.id })
-                                                        })
-                                                        if (res.ok) {
-                                                            const data = await res.json()
-                                                            setGroup({
-                                                                ...group,
-                                                                inviteCode: data.inviteCode,
-                                                                inviteCodeCreated: data.inviteCodeCreated
-                                                            })
-                                                            alert("New invite code generated!")
-                                                        } else {
-                                                            alert("Failed to generate code")
-                                                        }
-                                                    } catch (e) { console.error(e); alert("Error generating code") }
-                                                }}
-
-                                            >
-                                                Regenerate Code
-                                            </Button>
-                                        )}
                                     </div>
                                 </div>
                             </div>

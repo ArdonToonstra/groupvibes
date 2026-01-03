@@ -1,0 +1,100 @@
+'use client'
+
+import { Card } from "@/components/ui/card"
+import {
+    LineChart,
+    Line,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip,
+    ResponsiveContainer
+} from 'recharts'
+
+interface StatsViewProps {
+    checkins: any[]
+}
+
+export function StatsView({ checkins }: StatsViewProps) {
+    if (checkins.length === 0) {
+        return (
+            <div className="text-center text-gray-400 py-10">
+                No data available for trends.
+            </div>
+        )
+    }
+
+    // Basic stats calculation
+    const totalCheckins = checkins.length
+    const totalVibe = checkins.reduce((acc, curr) => acc + (curr.vibeScore || 0), 0)
+    const averageVibe = (totalVibe / totalCheckins).toFixed(1)
+
+    // Prepare data for chart
+    // 1. Sort by date just in case
+    // 2. Map to format needed by Recharts
+    const sortedCheckins = [...checkins].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+
+    const chartData = sortedCheckins.map(c => ({
+        date: new Date(c.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+        fullDate: new Date(c.createdAt).toLocaleString(),
+        vibe: c.vibeScore
+    }))
+
+    return (
+        <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+                <Card className="p-4 bg-white dark:bg-gray-800 border-none shadow-sm rounded-xl">
+                    <div className="text-sm text-gray-500 mb-1">Total Check-ins</div>
+                    <div className="text-2xl font-bold text-gray-900 dark:text-white">{totalCheckins}</div>
+                </Card>
+                <Card className="p-4 bg-white dark:bg-gray-800 border-none shadow-sm rounded-xl">
+                    <div className="text-sm text-gray-500 mb-1">Avg Vibe</div>
+                    <div className="text-2xl font-bold text-primary">{averageVibe}</div>
+                </Card>
+            </div>
+
+            <Card className="p-5 bg-white dark:bg-gray-800 border-none shadow-sm rounded-xl">
+                <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Vibe Trend</h3>
+                <div className="h-[250px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: -20 }}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
+                            <XAxis
+                                dataKey="date"
+                                tick={{ fontSize: 12, fill: '#6B7280' }}
+                                tickLine={false}
+                                axisLine={false}
+                                tickMargin={10}
+                            />
+                            <YAxis
+                                domain={[0, 10]}
+                                tick={{ fontSize: 12, fill: '#6B7280' }}
+                                tickLine={false}
+                                axisLine={false}
+                            />
+                            <Tooltip
+                                contentStyle={{
+                                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                                    borderRadius: '12px',
+                                    border: 'none',
+                                    boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
+                                }}
+                                labelStyle={{ color: '#374151', fontSize: '12px', marginBottom: '4px' }}
+                                itemStyle={{ color: '#2563EB', fontWeight: 600, fontSize: '14px' }}
+                                cursor={{ stroke: '#9CA3AF', strokeWidth: 1, strokeDasharray: '4 4' }}
+                            />
+                            <Line
+                                type="monotone"
+                                dataKey="vibe"
+                                stroke="#2563EB"
+                                strokeWidth={3}
+                                dot={{ fill: '#2563EB', r: 4, strokeWidth: 0 }}
+                                activeDot={{ r: 6, strokeWidth: 0 }}
+                            />
+                        </LineChart>
+                    </ResponsiveContainer>
+                </div>
+            </Card>
+        </div>
+    )
+}

@@ -38,3 +38,7 @@ next-env.d.ts
 # payload
 src/payload-types.ts
 src/app/(payload)/admin/importMap.js
+
+# playwright
+/playwright-report/
+/test-results/

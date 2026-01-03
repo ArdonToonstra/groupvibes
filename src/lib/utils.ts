@@ -1,3 +1,10 @@
+import { type ClassValue, clsx } from "clsx"
+import { twMerge } from "tailwind-merge"
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs))
+}
+
 /**
  * Generate a cryptographically secure random alphanumeric invite code
  * @param length Length of the code (default: 8)
@@ -7,14 +14,14 @@ export function generateInviteCode(length: number = 8): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
   const charsLength = chars.length
   let result = ''
-  
+
   // Use crypto.getRandomValues for cryptographically secure randomness
   if (typeof window !== 'undefined' && window.crypto) {
     // Browser environment - use rejection sampling to avoid modulo bias
     const maxRange = 256 - (256 % charsLength)
     const array = new Uint8Array(length * 2) // Generate extra bytes for rejection sampling
     window.crypto.getRandomValues(array)
-    
+
     let arrayIndex = 0
     while (result.length < length && arrayIndex < array.length) {
       const byte = array[arrayIndex++]
@@ -23,7 +30,7 @@ export function generateInviteCode(length: number = 8): string {
         result += chars.charAt(byte % charsLength)
       }
     }
-    
+
     // If we need more bytes (unlikely), generate more
     while (result.length < length) {
       const extraArray = new Uint8Array(length - result.length)
@@ -41,7 +48,7 @@ export function generateInviteCode(length: number = 8): string {
       const crypto = require('crypto')
       const maxRange = 256 - (256 % charsLength)
       const bytes = crypto.randomBytes(length * 2)
-      
+
       let byteIndex = 0
       while (result.length < length && byteIndex < bytes.length) {
         const byte = bytes[byteIndex++]
@@ -50,7 +57,7 @@ export function generateInviteCode(length: number = 8): string {
           result += chars.charAt(byte % charsLength)
         }
       }
-      
+
       // If we need more bytes (unlikely), generate more
       while (result.length < length) {
         const extraBytes = crypto.randomBytes(length - result.length)
@@ -73,7 +80,7 @@ export function generateInviteCode(length: number = 8): string {
       result += chars.charAt(Math.floor(Math.random() * charsLength))
     }
   }
-  
+
   return result
 }
 

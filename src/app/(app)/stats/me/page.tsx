@@ -5,9 +5,13 @@ import { Button } from "@/components/ui/button"
 import { ArrowLeft } from "lucide-react"
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from "react"
+import { CheckinCard } from "@/components/stats/CheckinCard"
+import { StatsView } from "@/components/stats/StatsView"
+import { VibeHeatmap } from "@/components/stats/VibeHeatmap"
 
 export default function MyStatsPage() {
     const router = useRouter()
+    const [activeTab, setActiveTab] = useState<'feed' | 'insights' | 'heatmap'>('feed')
     const [checkins, setCheckins] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
 
@@ -46,6 +50,28 @@ export default function MyStatsPage() {
                         </Button>
                         <h1 className="text-xl font-bold text-gray-900 dark:text-white">My Activity</h1>
                     </div>
+
+                    {/* Simple Toggle */}
+                    <div className="flex bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+                        <button
+                            onClick={() => setActiveTab('feed')}
+                            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${activeTab === 'feed' ? 'bg-white dark:bg-gray-700 shadow-sm text-gray-900 dark:text-white' : 'text-gray-500'}`}
+                        >
+                            Feed
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('insights')}
+                            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${activeTab === 'insights' ? 'bg-white dark:bg-gray-700 shadow-sm text-gray-900 dark:text-white' : 'text-gray-500'}`}
+                        >
+                            Trends
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('heatmap')}
+                            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${activeTab === 'heatmap' ? 'bg-white dark:bg-gray-700 shadow-sm text-gray-900 dark:text-white' : 'text-gray-500'}`}
+                        >
+                            Heatmap
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -55,43 +81,21 @@ export default function MyStatsPage() {
                 ) : checkins.length === 0 ? (
                     <div className="text-center text-gray-400 py-10">No check-ins found.</div>
                 ) : (
-                    <div className="space-y-4">
-                        {checkins.map((checkin) => (
-                            <Card key={checkin.id} className="p-5 border-none shadow-sm rounded-2xl bg-white dark:bg-gray-800">
-                                <div className="flex justify-between items-start mb-3">
-                                    <div className="flex items-center gap-3">
-                                        {/* Assuming checkin.user comes populated or we just know it's me */}
-                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-100 to-pink-100 dark:from-purple-900 dark:to-pink-900 flex items-center justify-center font-bold text-purple-600">
-                                            Me
-                                        </div>
-                                        <div>
-                                            <div className="font-semibold text-gray-900 dark:text-white">You</div>
-                                            <div className="text-xs text-gray-500">{new Date(checkin.createdAt).toLocaleString()}</div>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-1.5 bg-gray-50 dark:bg-gray-700/50 px-3 py-1.5 rounded-full">
-                                        <span className="text-sm font-bold text-primary">Vibe: {checkin.vibeScore}</span>
-                                    </div>
-                                </div>
-
-                                {checkin.customNote && (
-                                    <p className="text-gray-600 dark:text-gray-300 mb-4 bg-gray-50 dark:bg-gray-900/50 p-3 rounded-xl text-sm italic">
-                                        &quot;{checkin.customNote}&quot;
-                                    </p>
-                                )}
-
-                                {checkin.tags && checkin.tags.length > 0 && (
-                                    <div className="flex flex-wrap gap-2">
-                                        {checkin.tags.map((tagObj: any, idx: number) => (
-                                            <span key={idx} className="px-2.5 py-1 rounded-lg bg-gray-100 dark:bg-gray-700 text-xs font-medium text-gray-600 dark:text-gray-300">
-                                                {tagObj.tag}
-                                            </span>
-                                        ))}
-                                    </div>
-                                )}
-                            </Card>
-                        ))}
-                    </div>
+                    <>
+                        {activeTab === 'feed' && (
+                            <div className="space-y-4">
+                                {checkins.map((checkin) => (
+                                    <CheckinCard key={checkin.id} checkin={checkin} showUser={true} />
+                                ))}
+                            </div>
+                        )}
+                        {activeTab === 'insights' && (
+                            <StatsView checkins={checkins} />
+                        )}
+                        {activeTab === 'heatmap' && (
+                            <VibeHeatmap checkins={checkins} />
+                        )}
+                    </>
                 )}
             </div>
         </div>
