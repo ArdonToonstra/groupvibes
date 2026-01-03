@@ -28,15 +28,15 @@ function SettingsContent() {
     const [saveStatus, setSaveStatus] = useState<{ field: string, status: 'saving' | 'saved' | 'idle' }>({ field: '', status: 'idle' })
 
     useEffect(() => {
-        const userId = localStorage.getItem('statelink_user_id')
-        if (!userId) {
-            router.push('/onboarding')
-            return
-        }
-
         const fetchSettings = async () => {
             try {
-                const res = await fetch(`/api/settings?userId=${userId}`)
+                const res = await fetch('/api/settings', {
+                    credentials: 'include'
+                })
+                if (res.status === 401) {
+                    router.push('/onboarding')
+                    return
+                }
                 if (res.ok) {
                     const data = await res.json()
                     setUser(data.user)
@@ -73,21 +73,23 @@ function SettingsContent() {
             setGroup({ ...group, members: updatedMembers })
 
             // API
-            const userId = localStorage.getItem('statelink_user_id')
             await fetch('/api/settings', {
                 method: 'PUT',
-                body: JSON.stringify({ userId, type: 'group', data: { removeMemberId: memberId } })
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: 'group', data: { removeMemberId: memberId } })
             })
         }
     }
 
     const handleLeaveGroup = async () => {
         if (confirm('Are you sure you want to leave this group?')) {
-            const userId = localStorage.getItem('statelink_user_id')
             try {
                 await fetch('/api/settings', {
                     method: 'PUT',
-                    body: JSON.stringify({ userId, type: 'leave_group' })
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type: 'leave_group' })
                 })
                 // Refresh to show "Join" state
                 setGroup(null)
@@ -106,14 +108,15 @@ function SettingsContent() {
 
         setSaveStatus({ field, status: 'saving' })
 
-        const userId = localStorage.getItem('statelink_user_id')
         const type = field === 'displayName' ? 'profile' : 'group'
         const payload = field === 'displayName' ? { displayName: value } : { name: value }
 
         try {
             await fetch('/api/settings', {
                 method: 'PUT',
-                body: JSON.stringify({ userId, type, data: payload })
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type, data: payload })
             })
 
             setSaveStatus({ field, status: 'saved' })
@@ -136,15 +139,30 @@ function SettingsContent() {
         a.click()
     }
 
-    const handleLogout = () => {
-        localStorage.removeItem('statelink_user_id')
+    const handleLogout = async () => {
+        try {
+            await fetch('/api/users/logout', {
+                method: 'POST',
+                credentials: 'include'
+            })
+        } catch (e) {
+            console.error('Logout error:', e)
+        }
         router.push('/onboarding')
     }
 
-    const handleDeleteAccount = () => {
+    const handleDeleteAccount = async () => {
         if (confirm('DANGER: This will permanently delete your account and all data. This cannot be undone. Continue?')) {
+            // TODO: Add API call to delete account
             alert('Account deleted.')
-            localStorage.removeItem('statelink_user_id')
+            try {
+                await fetch('/api/users/logout', {
+                    method: 'POST',
+                    credentials: 'include'
+                })
+            } catch (e) {
+                console.error('Logout error:', e)
+            }
             router.push('/onboarding')
         }
     }
@@ -197,19 +215,17 @@ function SettingsContent() {
                         <User className="w-4 h-4" />
                         My Profile
                     </button>
-                    {/* Show Group tab for everyone in a group, not just owners */}
-                    {group && (
-                        <button
-                            onClick={() => setActiveTab('group')}
-                            className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-semibold rounded-lg transition-all ${activeTab === 'group'
-                                ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
-                                : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-                                }`}
-                        >
-                            <Users className="w-4 h-4" />
-                            Group
-                        </button>
-                    )}
+                    {/* Always show Group tab */}
+                    <button
+                        onClick={() => setActiveTab('group')}
+                        className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-semibold rounded-lg transition-all ${activeTab === 'group'
+                            ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                            : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                            }`}
+                    >
+                        <Users className="w-4 h-4" />
+                        Group
+                    </button>
                 </div>
 
                 {/* Profile Content */}
@@ -288,6 +304,34 @@ function SettingsContent() {
                 )}
 
                 {/* Group Content */}
+                {activeTab === 'group' && !group && (
+                    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                        <Card className="p-6 border-none shadow-sm rounded-2xl bg-white dark:bg-gray-800 space-y-4">
+                            <h2 className="font-semibold text-gray-900 dark:text-white mb-2">You're Not in a Group</h2>
+                            <p className="text-sm text-gray-500 mb-4">
+                                Create a new group or join an existing one using an invite code.
+                            </p>
+                            <div className="space-y-3">
+                                <Button
+                                    onClick={() => router.push('/onboarding?step=3&action=create')}
+                                    className="w-full h-12 rounded-xl gap-2 bg-primary"
+                                >
+                                    <Users className="w-5 h-5" />
+                                    Create New Group
+                                </Button>
+                                <Button
+                                    onClick={() => router.push('/onboarding?step=3&action=join')}
+                                    variant="outline"
+                                    className="w-full h-12 rounded-xl gap-2"
+                                >
+                                    <Users className="w-5 h-5" />
+                                    Join with Invite Code
+                                </Button>
+                            </div>
+                        </Card>
+                    </div>
+                )}
+
                 {activeTab === 'group' && group && (
                     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
                         <Card className="p-6 border-none shadow-sm rounded-2xl bg-white dark:bg-gray-800 space-y-4">
@@ -354,11 +398,12 @@ function SettingsContent() {
                                                         return
                                                     }
                                                     console.log("Confirmed")
-                                                    const userId = localStorage.getItem('statelink_user_id')
                                                     try {
                                                         const res = await fetch('/api/groups/regenerate', {
                                                             method: 'POST',
-                                                            body: JSON.stringify({ userId, groupId: group.id })
+                                                            credentials: 'include',
+                                                            headers: { 'Content-Type': 'application/json' },
+                                                            body: JSON.stringify({ groupId: group.id })
                                                         })
                                                         if (res.ok) {
                                                             const data = await res.json()
@@ -430,12 +475,7 @@ function SettingsContent() {
                     </div>
                 )}
 
-                {activeTab === 'group' && !group && (
-                    <div className="text-center py-10">
-                        <p className="text-gray-500 mb-4">You are not part of a group.</p>
-                        <Button onClick={() => router.push('/onboarding')}>Join or Create a Group</Button>
-                    </div>
-                )}
+
 
             </div>
         </div>

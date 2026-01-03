@@ -18,18 +18,14 @@ export default function DashboardPage() {
   } | null>(null)
 
   useEffect(() => {
-    const userId = localStorage.getItem('statelink_user_id')
-    if (!userId) {
-      router.push('/onboarding')
-      return
-    }
-
     const fetchData = async () => {
       try {
-        const res = await fetch(`/api/dashboard?userId=${userId}`)
-        
-        if (res.status === 404) {
-          localStorage.removeItem('statelink_user_id')
+        const res = await fetch('/api/dashboard', {
+          credentials: 'include' // Include cookies in the request
+        })
+
+        if (res.status === 401) {
+          // Not authenticated, redirect to onboarding
           router.push('/onboarding')
           return
         }
@@ -145,7 +141,7 @@ export default function DashboardPage() {
             <Link href="/settings?tab=group">
               <Button variant="outline" className="w-full h-20 rounded-2xl border-dashed border-2 border-primary/20 hover:border-primary hover:bg-primary/5 text-primary gap-3 text-lg font-semibold bg-white dark:bg-gray-800">
                 <Users className="w-6 h-6" />
-                Invite People to Start
+                Invite People To Your Group
               </Button>
             </Link>
           </div>

@@ -12,16 +12,16 @@ export default function MyStatsPage() {
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
-        const userId = localStorage.getItem('statelink_user_id')
-        if (!userId) {
-            router.push('/onboarding')
-            return
-        }
-
         const fetchFeed = async () => {
             try {
-                // Fetch only my checkins
-                const res = await fetch(`/api/check-ins?userId=${userId}`)
+                // Fetch only my checkins - user determined by JWT
+                const res = await fetch('/api/check-ins', {
+                    credentials: 'include'
+                })
+                if (res.status === 401) {
+                    router.push('/onboarding')
+                    return
+                }
                 if (res.ok) {
                     const data = await res.json()
                     setCheckins(data.docs || [])

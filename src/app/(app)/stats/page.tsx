@@ -13,16 +13,16 @@ export default function GroupStatsPage() {
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
-        const userId = localStorage.getItem('statelink_user_id')
-        if (!userId) {
-            router.push('/onboarding')
-            return
-        }
-
         const fetchFeed = async () => {
             try {
-                // Scope=group automatically finds group by userId
-                const res = await fetch(`/api/check-ins?userId=${userId}&scope=group`)
+                // Scope=group automatically finds group by userId from JWT
+                const res = await fetch('/api/check-ins?scope=group', {
+                    credentials: 'include'
+                })
+                if (res.status === 401) {
+                    router.push('/onboarding')
+                    return
+                }
                 if (res.ok) {
                     const data = await res.json()
                     setCheckins(data.docs || []) // Payload returns { docs: [...] } usually for find

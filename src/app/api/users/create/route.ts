@@ -61,12 +61,17 @@ export async function POST(request: Request) {
 
     // Set the JWT token in an HTTP-only cookie
     if (loginResult?.token) {
+      // Calculate maxAge from expiration timestamp
+      const maxAge = loginResult.exp 
+        ? loginResult.exp - Math.floor(Date.now() / 1000)
+        : 7200 // Default to 2 hours
+
       response.cookies.set('payload-token', loginResult.token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
         path: '/',
-        maxAge: loginResult.exp || 7200,
+        maxAge: maxAge > 0 ? maxAge : 7200,
       })
     }
 

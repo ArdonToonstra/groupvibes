@@ -42,13 +42,19 @@ export async function POST(request: Request) {
             message: 'Login successful'
         })
 
+        // Calculate maxAge from expiration timestamp
+        // result.exp is a Unix timestamp in seconds
+        const maxAge = result.exp 
+            ? result.exp - Math.floor(Date.now() / 1000)
+            : 7200 // Default to 2 hours
+
         // Set the payload-token cookie with secure settings
         response.cookies.set('payload-token', result.token, {
             httpOnly: true, // Prevents XSS attacks
             secure: process.env.NODE_ENV === 'production', // HTTPS only in production
             sameSite: 'lax', // CSRF protection
             path: '/',
-            maxAge: result.exp || 7200, // Use token expiration or default to 2 hours
+            maxAge: maxAge > 0 ? maxAge : 7200,
         })
 
         return response

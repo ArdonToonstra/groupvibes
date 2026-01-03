@@ -111,16 +111,11 @@ export default function CheckInPage() {
       const selectedActivitiesList = ALL_ACTIVITIES.filter(a => selectedActivities.includes(a.id))
       const tags = selectedActivitiesList.map(a => a.label) // Send labels as tags
 
-      const userId = localStorage.getItem('statelink_user_id')
-      if (!userId) {
-        throw new Error("User session not found")
-      }
-
       const res = await fetch('/api/check-ins', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
-          userId,
           // VIBE_OPTIONS values are already 2, 4, 6, 8, 10.
           // So `vibe` state already holds the 1-10 scale value.
           vibeScore: vibe,
@@ -128,6 +123,11 @@ export default function CheckInPage() {
           customNote: note
         })
       })
+
+      if (res.status === 401) {
+        router.push('/onboarding')
+        return
+      }
 
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || "Failed to save")

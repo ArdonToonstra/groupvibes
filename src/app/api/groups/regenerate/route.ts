@@ -11,7 +11,7 @@ const generateInviteCode = () => {
 export async function POST(request: Request) {
     // Get authenticated user from JWT token
     const authenticatedUser = await getAuthenticatedUser()
-    
+
     if (!authenticatedUser) {
         return NextResponse.json(
             { error: 'Unauthorized - Please log in' },
@@ -42,12 +42,16 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Group not found' }, { status: 404 })
         }
 
-        const createdById = Number(group.createdBy)
+        // extract the createdBy ID safely, handling both populated object and direct ID ID scenarios
+        const createdBy = group.createdBy as any
+        const createdById = typeof createdBy === 'object' && createdBy !== null ? createdBy.id : createdBy
+
+        const numericCreatedById = Number(createdById)
         const requestUserId = Number(userId)
 
         // We can also verify against the user making the request if we fetched the user,
         // but the payload user session should be ideal. For now using ID check.
-        if (Number.isNaN(createdById) || Number.isNaN(requestUserId) || createdById !== requestUserId) {
+        if (Number.isNaN(numericCreatedById) || Number.isNaN(requestUserId) || numericCreatedById !== requestUserId) {
             return NextResponse.json(
                 { error: 'Unauthorized: Only the group owner can regenerate invite codes' },
                 { status: 403 }

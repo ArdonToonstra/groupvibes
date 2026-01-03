@@ -38,6 +38,16 @@ function OnboardingContent() {
       setInviteCode(code)
       setAutoInviteCode(code)
     }
+
+    // Check for step and action parameters (from settings page)
+    const stepParam = searchParams.get('step')
+    const actionParam = searchParams.get('action')
+    
+    if (stepParam === '3' && (actionParam === 'create' || actionParam === 'join')) {
+      // User is already authenticated and wants to create/join group
+      setStep(3)
+      setGroupAction(actionParam)
+    }
   }, [searchParams])
 
   // --- LOGIN HANDLER ---
@@ -53,6 +63,7 @@ function OnboardingContent() {
       const response = await fetch('/api/users/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // Important: include cookies
         body: JSON.stringify({ email: loginEmail, password: loginPassword }),
       })
 
@@ -62,9 +73,11 @@ function OnboardingContent() {
         throw new Error(data.error || 'Login failed')
       }
 
-      // Successful Login
-      // In a real app we might check if they have a group, but redirecting to dashboard is fine
-      router.push('/dashboard')
+      // Successful Login - give browser a moment to set cookie
+      // Then navigate to dashboard
+      setTimeout(() => {
+        router.push('/dashboard')
+      }, 100)
 
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Invalid credentials')
@@ -118,6 +131,7 @@ function OnboardingContent() {
         const userResponse = await fetch('/api/users/create', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
           body: JSON.stringify({
             displayName,
             email,
@@ -135,7 +149,6 @@ function OnboardingContent() {
 
         const newUserId = userData.user.id
         setUserId(newUserId)
-        localStorage.setItem('statelink_user_id', newUserId) // PERSIST
 
         setError('')
         if (autoInviteCode) {
@@ -151,31 +164,37 @@ function OnboardingContent() {
     }
   }
 
-  // --- AUTO LOGIN ON MOUNT ---
+  // --- CHECK IF ALREADY AUTHENTICATED ON MOUNT ---
   useEffect(() => {
-    const storedUserId = localStorage.getItem('statelink_user_id')
-    if (storedUserId) {
-      // Ideally verify it exists via API, but for now we trust it or dashboard will handle 404
-      // Or we can just redirect to dashboard directly if we have it?
-      // User might want to signup again if they are here.
-      // But if they just refreshed, they want to be logged in.
-      // We'll trust it.
-      // If viewing '/' (onboarding), maybe we should redirect to dashboard?
-      // For now, I won't auto-redirect to avoid loop if they explicitly came here to logout/switch.
-      // But I will set it in state so 'Join/Create' works if they skip steps?
-      // Actually they can't skip steps easily.
-      // Let's just persist on Create/Login.
+    const checkAuth = async () => {
+      // Skip auth check if user is coming from settings to create/join group
+      const stepParam = searchParams.get('step')
+      const actionParam = searchParams.get('action')
+      if (stepParam === '3' && (actionParam === 'create' || actionParam === 'join')) {
+        return // Let them proceed to group creation/join
+      }
+
+      try {
+        const res = await fetch('/api/dashboard', {
+          credentials: 'include'
+        })
+        
+        // If user is authenticated and has group, redirect to dashboard
+        if (res.ok) {
+          router.push('/dashboard')
+        }
+        // Otherwise stay on onboarding page
+      } catch (e) {
+        // Error checking auth, stay on onboarding
+      }
     }
-  }, [])
+    checkAuth()
+  }, [router, searchParams])
 
 
   const handleCreateGroup = async () => {
     if (!groupName.trim()) {
       setError('Please enter a group name')
-      return
-    }
-    if (!userId) {
-      setError("User account not found. Please restart.")
       return
     }
     setLoading(true)
@@ -184,7 +203,8 @@ function OnboardingContent() {
       const response = await fetch('/api/groups/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: groupName, userId: userId }),
+        credentials: 'include',
+        body: JSON.stringify({ name: groupName }),
       })
       const data = await response.json()
       if (!response.ok) {
@@ -204,17 +224,14 @@ function OnboardingContent() {
       setError('Please enter an invite code')
       return
     }
-    if (!userId) {
-      setError("User account not found. Please restart.")
-      return
-    }
     setLoading(true)
     setError('')
     try {
       const response = await fetch('/api/groups/join', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ inviteCode, userId: userId }),
+        credentials: 'include',
+        body: JSON.stringify({ inviteCode }),
       })
       const data = await response.json()
       if (!response.ok) {
