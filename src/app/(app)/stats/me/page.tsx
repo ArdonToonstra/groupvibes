@@ -48,7 +48,7 @@ export default function MyStatsPage() {
                         <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full">
                             <ArrowLeft className="w-5 h-5 text-gray-500" />
                         </Button>
-                        <h1 className="text-xl font-bold text-gray-900 dark:text-white">My Activity</h1>
+                        <h1 className="text-xl font-bold text-gray-900 dark:text-white">My Stats</h1>
                     </div>
 
                     {/* Simple Toggle */}

@@ -371,8 +371,7 @@ function SettingsContent() {
                             <Button variant="outline" onClick={handleDownloadData} className="w-full h-12 rounded-xl justify-start px-4 gap-3 bg-gray-50 border-0 hover:bg-gray-100 dark:bg-gray-900 dark:hover:bg-gray-700">
                                 <Download className="w-5 h-5 text-gray-500" />
                                 <div className="text-left">
-                                    <div className="font-semibold text-gray-700 dark:text-gray-200">Download my data</div>
-                                    <div className="text-xs text-gray-400 font-normal">Get a copy of everything you&apos;ve shared</div>
+                                    <div className="font-semibold text-gray-700 dark:text-gray-200">Download All My Data</div>
                                 </div>
                             </Button>
 
@@ -380,7 +379,6 @@ function SettingsContent() {
                                 <Trash2 className="w-5 h-5" />
                                 <div className="text-left">
                                     <div className="font-semibold">Delete Account</div>
-                                    <div className="text-xs opacity-70 font-normal">Permanently remove your account</div>
                                 </div>
                             </Button>
                         </Card>

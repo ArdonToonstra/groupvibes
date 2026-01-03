@@ -176,17 +176,7 @@ export default function DashboardPage() {
           </Link>
         </div>
 
-        {/* Latest Update (if User has data) */}
-        {data.userLastVibe && (
-          <div className="text-center">
-            <p className="text-xs text-gray-400 font-medium uppercase tracking-widest mb-2">Your Last Check-in</p>
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 rounded-full shadow-sm">
-              <span className="font-bold text-gray-900 dark:text-white">{new Date(data.userLastVibe.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-              <span className="w-1 h-1 bg-gray-300 rounded-full" />
-              <span className="text-primary font-bold">Vibe: {data.userLastVibe.vibeScore}</span>
-            </div>
-          </div>
-        )}
+
 
       </div>
     </div>
