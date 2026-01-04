@@ -39,10 +39,16 @@ function OnboardingContent() {
       setAutoInviteCode(code)
     }
 
+    // Check for view parameter
+    const viewParam = searchParams.get('view')
+    if (viewParam === 'login' || viewParam === 'onboarding') {
+      setView(viewParam)
+    }
+
     // Check for step and action parameters (from settings page)
     const stepParam = searchParams.get('step')
     const actionParam = searchParams.get('action')
-    
+
     if (stepParam === '3' && (actionParam === 'create' || actionParam === 'join')) {
       // User is already authenticated and wants to create/join group
       setStep(3)
@@ -178,7 +184,7 @@ function OnboardingContent() {
         const res = await fetch('/api/dashboard', {
           credentials: 'include'
         })
-        
+
         // If user is authenticated and has group, redirect to dashboard
         if (res.ok) {
           router.push('/dashboard')

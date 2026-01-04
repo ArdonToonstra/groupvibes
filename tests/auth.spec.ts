@@ -1,12 +1,12 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Authentication', () => {
-    const uniqueId = Date.now();
-    const email = `user${uniqueId}@example.com`;
-    const password = 'Password123';
-    const displayName = `User ${uniqueId}`;
-
     test('User can sign up and reach dashboard', async ({ page }) => {
+        const uniqueId = Date.now();
+        const email = `user${uniqueId}@example.com`;
+        const password = 'Password123';
+        const displayName = `User ${uniqueId}`;
+
         await page.goto('/onboarding');
 
         // Step 1: Display Name
@@ -29,7 +29,8 @@ test.describe('Authentication', () => {
         await expect(page.getByText('Create Group')).toBeVisible();
 
         // Click Create Group
-        await page.getByText('Create Group', { exact: false }).click();
+        // Use a more specific selector to avoid ambiguity between the card and the heading/button
+        await page.locator('button:has-text("Create Group")').first().click();
 
         // Group Name
         const groupInput = page.getByPlaceholder('e.g. The Avengers');
