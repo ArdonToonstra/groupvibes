@@ -46,16 +46,18 @@ export function VibeHeatmap({ checkins }: VibeHeatmapProps) {
 
         if (!stat) return 'bg-gray-100 dark:bg-gray-800' // Empty
 
-        // Simple interpolation or thresholds
-        // 0-4: Redish
-        // 4-7: Yellow/Orange
-        // 7-10: Green
-
         const avg = stat.avg
-        if (avg >= 8) return 'bg-green-500'
-        if (avg >= 6) return 'bg-lime-400'
-        if (avg >= 4) return 'bg-yellow-400'
-        if (avg >= 2) return 'bg-orange-400'
+        // Matching check-in colors:
+        // 10: Rad (Emerald)
+        // 8: Good (Lime)
+        // 6: Meh (Blue)
+        // 4: Bad (Amber)
+        // 2: Awful (Red)
+
+        if (avg >= 9) return 'bg-emerald-500'
+        if (avg >= 7) return 'bg-lime-500'
+        if (avg >= 5) return 'bg-blue-500'
+        if (avg >= 3) return 'bg-amber-500'
         return 'bg-red-500'
     }
 
@@ -123,15 +125,21 @@ export function VibeHeatmap({ checkins }: VibeHeatmapProps) {
                 </TooltipProvider>
             </div>
 
-            <div className="flex justify-center gap-4 mt-4 text-xs text-gray-500">
+            <div className="flex justify-center flex-wrap gap-3 mt-4 text-xs text-gray-500">
                 <div className="flex items-center gap-1">
-                    <div className="w-3 h-3 rounded-sm bg-red-500"></div> Bad
+                    <div className="w-2.5 h-2.5 rounded-full bg-red-500"></div> Awful
                 </div>
                 <div className="flex items-center gap-1">
-                    <div className="w-3 h-3 rounded-sm bg-yellow-400"></div> Okay
+                    <div className="w-2.5 h-2.5 rounded-full bg-amber-500"></div> Bad
                 </div>
                 <div className="flex items-center gap-1">
-                    <div className="w-3 h-3 rounded-sm bg-green-500"></div> Great
+                    <div className="w-2.5 h-2.5 rounded-full bg-blue-500"></div> Meh
+                </div>
+                <div className="flex items-center gap-1">
+                    <div className="w-2.5 h-2.5 rounded-full bg-lime-500"></div> Good
+                </div>
+                <div className="flex items-center gap-1">
+                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-500"></div> Rad
                 </div>
             </div>
         </Card>
