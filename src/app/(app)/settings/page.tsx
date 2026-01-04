@@ -399,7 +399,7 @@ function SettingsContent() {
                 {activeTab === 'group' && !group && (
                     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
                         <Card className="p-6 border-none shadow-sm rounded-2xl bg-white dark:bg-gray-800 space-y-4">
-                            <h2 className="font-semibold text-gray-900 dark:text-white mb-2">You're Not in a Group</h2>
+                            <h2 className="font-semibold text-gray-900 dark:text-white mb-2">You&apos;re Not in a Group</h2>
                             <p className="text-sm text-gray-500 mb-4">
                                 Create a new group or join an existing one using an invite code.
                             </p>

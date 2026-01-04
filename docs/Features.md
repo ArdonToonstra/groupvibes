@@ -1,12 +1,17 @@
 # STATELINK – Complete Feature List
 
 ---
+TODO
 
-- copy group link under share button, should give a link with the group code to sign up.
+* create testcases
+* install github workflows
+* Make delete account work
+* add email confirmation
+* add better context tags (like drug hangover)
+
 
 ## Authentication & Onboarding
 
-- **Magic Link Sign-In:** Passwordless entry using secure, one-time email links.
 - **User Onboarding:**
   - Set display name
   - Join group via invite code or create new group
@@ -19,10 +24,7 @@
 
 ## Group Dynamics
 
-- **Invite System:** Generation of unique alphanumeric codes for private group entry
-- **Group Pulse Dashboard:**
-  - Live feed showing the latest status of all friends in the group
-  - Visual "Average Vibe" (1–10) aggregate for the last x time
+
 - **Admin Controls:**
   - Interval Mode: Toggle between "Fixed" (static times) and "Random" (stochastic pings)
   - Frequency: Set how many pings occur within a x hour or x week cycle
@@ -32,22 +34,6 @@
 
 ## The Vibe Check Loop
 
-- **Mood Input:** High-precision 1–10 slider component, starts at no value, and once slided to a number, it locks in that rating for the current ping and moves on. 
-- **Contextual Tags:** Multi-select categories to explain the rating: awnseryn the question "what have you been up to?
-  - family
-  - friends, 
-  - date
-  - exercise
-  - sport
-  - relax
-  - movies
-  - gaming
-  - reading 
-  - cleaning
-  - sleep early
-  - eat healthy
-  - shopping 
-  - + add custom tags
 - **Edit:** Be able to change the ratings from the last 24 hours.
 - **History View:** Personal  trend visualization (line chart/sparkline)
 
