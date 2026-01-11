@@ -6,7 +6,7 @@ import { getAuthenticatedUser } from '@/lib/auth'
 export async function GET(request: Request) {
     // Get authenticated user from JWT token
     const authenticatedUser = await getAuthenticatedUser()
-    
+
     if (!authenticatedUser) {
         return NextResponse.json(
             { error: 'Unauthorized - Please log in' },
@@ -52,7 +52,12 @@ export async function GET(request: Request) {
                 name: group.name,
                 inviteCode: group.inviteCode,
                 members: group.members
-            } : null
+            } : null,
+            checkins: await payload.find({
+                collection: 'checkins',
+                where: { user: { equals: userId } },
+                limit: 1000,
+            }).then(res => res.docs)
         })
 
     } catch (error) {
@@ -64,7 +69,7 @@ export async function GET(request: Request) {
 export async function PUT(request: Request) {
     // Get authenticated user from JWT token
     const authenticatedUser = await getAuthenticatedUser()
-    
+
     if (!authenticatedUser) {
         return NextResponse.json(
             { error: 'Unauthorized - Please log in' },
@@ -105,7 +110,7 @@ export async function PUT(request: Request) {
             // Verify user is the group owner
             const group = await payload.findByID({ collection: 'groups', id: gId as unknown as number })
             const groupOwnerId = typeof group.createdBy === 'object' ? group.createdBy.id : group.createdBy
-            
+
             if (userId !== groupOwnerId) {
                 return NextResponse.json(
                     { error: 'Only the group owner can perform this action' },

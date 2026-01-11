@@ -24,5 +24,33 @@ export const Users: CollectionConfig = {
         description: 'Group this user belongs to',
       },
     },
+
+    // Verification Fields
+    {
+      name: 'verificationCode',
+      type: 'text',
+      hidden: true,
+      admin: {
+        disabled: true,
+      },
+    },
+    {
+      name: 'verificationCodeExpiresAt',
+      type: 'date',
+      hidden: true,
+    },
+    {
+      name: 'lastVerificationEmailSentAt',
+      type: 'date',
+      hidden: true,
+    },
+    {
+      name: 'isVerified',
+      type: 'checkbox',
+      defaultValue: false,
+      admin: {
+        description: 'Has the user verified their email?',
+      },
+    },
   ],
 }

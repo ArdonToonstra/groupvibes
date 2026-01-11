@@ -1,5 +1,30 @@
 import { test, expect } from '@playwright/test';
 
+// Helper function to get verification code from test endpoint
+async function getVerificationCode(page: any): Promise<string | null> {
+    try {
+        const response = await page.request.get('/api/auth/test-get-code');
+        const data = await response.json();
+        return data.verificationCode || null;
+    } catch {
+        return null;
+    }
+}
+
+// Helper function to check if verification step appears and handle it
+async function handleVerificationStepIfNeeded(page: any) {
+    await page.waitForTimeout(500);
+    const verifyEmailVisible = await page.getByText('Verify Email').isVisible().catch(() => false);
+
+    if (verifyEmailVisible) {
+        const code = await getVerificationCode(page);
+        if (code) {
+            await page.getByPlaceholder('Enter 6-digit code').fill(code);
+            await page.getByRole('button', { name: 'Verify Email' }).click();
+        }
+    }
+}
+
 test.describe('Check-ins', () => {
     test.beforeEach(async ({ page }) => {
         const uniqueId = Date.now();
@@ -16,8 +41,11 @@ test.describe('Check-ins', () => {
         await page.locator('input[type="password"]').fill(password);
         await page.getByRole('button', { name: 'Continue' }).click();
 
+        // Handle verification if enabled
+        await handleVerificationStepIfNeeded(page);
+
+        // Group Selection
         await expect(page.getByText('Find your Squad')).toBeVisible();
-        // Click Create Group
         await page.locator('button:has-text("Create Group")').first().click();
 
         await expect(page.getByPlaceholder('e.g. The Avengers')).toBeVisible();
@@ -53,8 +81,6 @@ test.describe('Check-ins', () => {
         await expect(page).toHaveURL('/dashboard');
 
         // Verify dashboard updates
-        // "good" is 8, so average is 8.
-        // Dashboard logic: > 7 => "Vibes are immaculate"
         await expect(page.getByText('8', { exact: false })).toBeVisible();
         await expect(page.getByText("Vibes are immaculate")).toBeVisible();
     });

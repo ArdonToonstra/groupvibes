@@ -237,17 +237,24 @@ function SettingsContent() {
 
     const handleDeleteAccount = async () => {
         if (confirm('DANGER: This will permanently delete your account and all data. This cannot be undone. Continue?')) {
-            // TODO: Add API call to delete account
-            alert('Account deleted.')
             try {
-                await fetch('/api/users/logout', {
-                    method: 'POST',
+                const res = await fetch('/api/users/delete', {
+                    method: 'DELETE',
                     credentials: 'include'
                 })
+
+                if (!res.ok) {
+                    const data = await res.json()
+                    alert(data.error || 'Failed to delete account')
+                    return
+                }
+
+                alert('Account deleted successfully.')
+                router.push('/onboarding')
             } catch (e) {
-                console.error('Logout error:', e)
+                console.error('Delete account error:', e)
+                alert('Failed to delete account. Please try again.')
             }
-            router.push('/onboarding')
         }
     }
 

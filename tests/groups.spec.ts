@@ -1,5 +1,30 @@
 import { test, expect } from '@playwright/test';
 
+// Helper function to get verification code from test endpoint
+async function getVerificationCode(page: any): Promise<string | null> {
+    try {
+        const response = await page.request.get('/api/auth/test-get-code');
+        const data = await response.json();
+        return data.verificationCode || null;
+    } catch {
+        return null;
+    }
+}
+
+// Helper function to check if verification step appears and handle it
+async function handleVerificationStepIfNeeded(page: any) {
+    await page.waitForTimeout(500);
+    const verifyEmailVisible = await page.getByText('Verify Email').isVisible().catch(() => false);
+
+    if (verifyEmailVisible) {
+        const code = await getVerificationCode(page);
+        if (code) {
+            await page.getByPlaceholder('Enter 6-digit code').fill(code);
+            await page.getByRole('button', { name: 'Verify Email' }).click();
+        }
+    }
+}
+
 test.describe('Groups', () => {
     test.beforeEach(async ({ page }) => {
         const uniqueId = Date.now();
@@ -15,6 +40,11 @@ test.describe('Groups', () => {
         await page.getByPlaceholder('you@example.com').fill(email);
         await page.locator('input[type="password"]').fill(password);
         await page.getByRole('button', { name: 'Continue' }).click();
+
+        // Handle verification if enabled
+        await handleVerificationStepIfNeeded(page);
+
+        // Group Selection
         await expect(page.getByText('Find your Squad')).toBeVisible();
     });
 
@@ -63,7 +93,6 @@ test.describe('Groups', () => {
         await page.getByText('Confirm').click();
 
         // Wait for regeneration - code should change
-        // We can poll or wait for text to be different
         await expect(inviteCodeElement).not.toHaveText(param1 || '', { timeout: 10000 });
     });
 });

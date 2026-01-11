@@ -5,7 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
-import { Zap, ArrowLeft, Users, Plus, ArrowRight, Download, Trash2, ArrowRightLeft } from 'lucide-react'
+import { Zap, ArrowLeft, Users, Plus, ArrowRight, Download, Trash2, ArrowRightLeft, Mail } from 'lucide-react'
+import { toast } from 'sonner'
 
 function OnboardingContent() {
   const router = useRouter()
@@ -33,6 +34,19 @@ function OnboardingContent() {
   const [error, setError] = useState('')
   const [showMigrationModal, setShowMigrationModal] = useState(false)
 
+  // Verification State
+  const [verificationCode, setVerificationCode] = useState('')
+  const [verifying, setVerifying] = useState(false)
+  const [resendCooldown, setResendCooldown] = useState(0)
+
+  // Resend cooldown timer
+  useEffect(() => {
+    if (resendCooldown > 0) {
+      const timer = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000)
+      return () => clearTimeout(timer)
+    }
+  }, [resendCooldown])
+
   useEffect(() => {
     const code = searchParams.get('invite') || searchParams.get('code')
     if (code) {
@@ -50,9 +64,10 @@ function OnboardingContent() {
     const stepParam = searchParams.get('step')
     const actionParam = searchParams.get('action')
 
-    if (stepParam === '3' && (actionParam === 'create' || actionParam === 'join')) {
+    // Step 4 is now group selection (was step 3)
+    if (stepParam === '4' && (actionParam === 'create' || actionParam === 'join')) {
       // User is already authenticated and wants to create/join group
-      setStep(3)
+      setStep(4)
       setGroupAction(actionParam)
     }
   }, [searchParams])
@@ -158,10 +173,22 @@ function OnboardingContent() {
         setUserId(newUserId)
 
         setError('')
-        if (autoInviteCode) {
-          setGroupAction('join')
+
+        // Check if verification is enabled
+        const isVerificationEnabled = process.env.NEXT_PUBLIC_IS_VERIFICATION_ENABLED === 'true'
+
+        if (isVerificationEnabled) {
+          // Start resend cooldown since email was just sent
+          setResendCooldown(300)
+          // Go to verification step (step 3)
+          setStep(3)
+        } else {
+          // Skip verification, go directly to group selection (step 4)
+          if (autoInviteCode) {
+            setGroupAction('join')
+          }
+          setStep(4)
         }
-        setStep(3)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An error occurred')
       } finally {
@@ -177,7 +204,7 @@ function OnboardingContent() {
       // Skip auth check if user is coming from settings to create/join group
       const stepParam = searchParams.get('step')
       const actionParam = searchParams.get('action')
-      if (stepParam === '3' && (actionParam === 'create' || actionParam === 'join')) {
+      if (stepParam === '4' && (actionParam === 'create' || actionParam === 'join')) {
         return // Let them proceed to group creation/join
       }
 
@@ -198,6 +225,74 @@ function OnboardingContent() {
     checkAuth()
   }, [router, searchParams])
 
+
+  // --- VERIFICATION HANDLERS ---
+  const handleVerifyCode = async () => {
+    if (!verificationCode.trim() || verificationCode.length < 6) {
+      setError('Please enter the 6-digit code')
+      return
+    }
+    setVerifying(true)
+    setError('')
+
+    try {
+      const res = await fetch('/api/auth/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ code: verificationCode }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Verification failed')
+      }
+
+      toast.success('Email verified!')
+      // Pre-fill group action if invite code was provided
+      if (autoInviteCode) {
+        setGroupAction('join')
+      }
+      setStep(4) // Go to group selection
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Verification failed')
+    } finally {
+      setVerifying(false)
+    }
+  }
+
+  const handleResendCode = async () => {
+    if (resendCooldown > 0) return
+    setLoading(true)
+    setError('')
+
+    try {
+      const res = await fetch('/api/auth/send-verification', {
+        method: 'POST',
+        credentials: 'include',
+      })
+
+      const data = await res.json()
+
+      if (res.status === 429) {
+        toast.error(data.error)
+        setResendCooldown(300)
+        return
+      }
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to send email')
+      }
+
+      toast.success('Verification code sent!')
+      setResendCooldown(300)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to resend')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleCreateGroup = async () => {
     if (!groupName.trim()) {
@@ -399,10 +494,10 @@ function OnboardingContent() {
             <>
               <div className="text-center space-y-2 mb-8">
                 <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {step === 1 ? 'Welcome!' : step === 2 ? 'Secure Account' : 'Find your Squad'}
+                  {step === 1 ? 'Welcome!' : step === 2 ? 'Secure Account' : step === 3 ? 'Verify Email' : 'Find your Squad'}
                 </h1>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {step === 1 ? 'Let\'s get started with your name.' : step === 2 ? 'Create a login to save your stats.' : 'Create or join a group.'}
+                  {step === 1 ? 'Let\'s get started with your name.' : step === 2 ? 'Create a login to save your stats.' : step === 3 ? 'Enter the code we sent to your email.' : 'Create or join a group.'}
                 </p>
               </div>
 
@@ -459,7 +554,83 @@ function OnboardingContent() {
                   </div>
                 )}
 
-                {step === 3 && !groupAction && (
+                {/* Step 3: Verification */}
+                {step === 3 && (
+                  <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+                    <div className="flex justify-center">
+                      <div className="w-16 h-16 bg-blue-50 dark:bg-blue-900/20 rounded-full flex items-center justify-center text-blue-500">
+                        <Mail className="w-8 h-8" />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2 pl-1">
+                        Verification Code
+                      </label>
+                      <Input
+                        value={verificationCode}
+                        onChange={(e) => setVerificationCode(e.target.value.trim())}
+                        placeholder="Enter 6-digit code"
+                        className="h-14 rounded-2xl bg-gray-50 dark:bg-gray-900 border-transparent focus:border-primary/20 focus:bg-white dark:focus:bg-gray-800 transition-all text-center text-2xl tracking-widest"
+                        maxLength={6}
+                      />
+                    </div>
+
+                    {/* Development Mode Helper */}
+                    {process.env.NODE_ENV !== 'production' && (
+                      <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-xl border border-yellow-200 dark:border-yellow-800">
+                        <p className="text-xs text-yellow-700 dark:text-yellow-300 font-medium mb-2">🛠️ Dev Mode</p>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              const res = await fetch('/api/auth/test-get-code', { credentials: 'include' })
+                              const data = await res.json()
+                              if (data.verificationCode) {
+                                setVerificationCode(data.verificationCode)
+                                toast.success('Code auto-filled!')
+                              } else {
+                                toast.error('No code found')
+                              }
+                            } catch (e) {
+                              toast.error('Failed to get code')
+                            }
+                          }}
+                          className="w-full text-sm bg-yellow-100 dark:bg-yellow-800/50 hover:bg-yellow-200 dark:hover:bg-yellow-800 text-yellow-800 dark:text-yellow-200 py-2 px-3 rounded-lg transition-colors"
+                        >
+                          Auto-fill verification code
+                        </button>
+                      </div>
+                    )}
+
+                    {error && <p className="text-sm text-red-500 text-center bg-red-50 p-2 rounded-lg">{error}</p>}
+
+                    <Button
+                      onClick={handleVerifyCode}
+                      disabled={verifying || verificationCode.length < 6}
+                      className="w-full h-14 text-lg rounded-2xl font-semibold shadow-lg shadow-primary/20"
+                    >
+                      {verifying ? 'Verifying...' : 'Verify Email'}
+                    </Button>
+
+                    <div className="text-center">
+                      <button
+                        type="button"
+                        onClick={handleResendCode}
+                        disabled={resendCooldown > 0 || loading}
+                        className="text-sm text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {resendCooldown > 0
+                          ? `Resend available in ${Math.floor(resendCooldown / 60)}:${(resendCooldown % 60).toString().padStart(2, '0')}`
+                          : loading ? 'Sending...' : 'Resend verification code'
+                        }
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 4: Group Selection */}
+                {step === 4 && !groupAction && (
                   <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-500">
                     {autoInviteCode ? (
                       <div className="text-center p-4 bg-primary/5 rounded-2xl mb-4">
@@ -489,10 +660,17 @@ function OnboardingContent() {
                         <span className="font-semibold text-gray-700 group-hover:text-primary">Create Group</span>
                       </button>
                     </div>
+
+                    <button
+                      onClick={() => router.push('/dashboard')}
+                      className="w-full text-sm text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors pt-4"
+                    >
+                      Skip for now
+                    </button>
                   </div>
                 )}
 
-                {step === 3 && groupAction === 'create' && (
+                {step === 4 && groupAction === 'create' && (
                   <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
                     <div>
                       <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2 pl-1">
@@ -517,7 +695,7 @@ function OnboardingContent() {
                   </div>
                 )}
 
-                {step === 3 && groupAction === 'join' && (
+                {step === 4 && groupAction === 'join' && (
                   <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
                     <div>
                       <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2 pl-1">

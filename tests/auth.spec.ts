@@ -1,5 +1,35 @@
 import { test, expect } from '@playwright/test';
 
+// Helper function to get verification code from test endpoint
+async function getVerificationCode(page: any): Promise<string | null> {
+    try {
+        const response = await page.request.get('/api/auth/test-get-code');
+        const data = await response.json();
+        return data.verificationCode || null;
+    } catch {
+        return null;
+    }
+}
+
+// Helper function to check if verification step appears and handle it
+async function handleVerificationStepIfNeeded(page: any) {
+    // Wait a moment for the page to settle
+    await page.waitForTimeout(500);
+
+    // Check if verification step is showing
+    const verifyEmailVisible = await page.getByText('Verify Email').isVisible().catch(() => false);
+
+    if (verifyEmailVisible) {
+        // Verification is enabled - get code and verify
+        const code = await getVerificationCode(page);
+        if (code) {
+            await page.getByPlaceholder('Enter 6-digit code').fill(code);
+            await page.getByRole('button', { name: 'Verify Email' }).click();
+        }
+    }
+    // If verification step is not visible, we automatically skipped it
+}
+
 test.describe('Authentication', () => {
     test('User can sign up and reach dashboard', async ({ page }) => {
         const uniqueId = Date.now();
@@ -24,12 +54,14 @@ test.describe('Authentication', () => {
         await page.locator('input[type="password"]').fill(password);
         await page.getByRole('button', { name: 'Continue' }).click();
 
-        // Step 3: Join/Create Group
+        // Step 3: Verification (if enabled) - handled automatically
+        await handleVerificationStepIfNeeded(page);
+
+        // Step 4 (or 3 if verification disabled): Group Selection
         await expect(page.getByText('Find your Squad')).toBeVisible();
         await expect(page.getByText('Create Group')).toBeVisible();
 
         // Click Create Group
-        // Use a more specific selector to avoid ambiguity between the card and the heading/button
         await page.locator('button:has-text("Create Group")').first().click();
 
         // Group Name
@@ -60,8 +92,12 @@ test.describe('Authentication', () => {
         await page.locator('input[type="password"]').fill(testPass);
         await page.getByRole('button', { name: 'Continue' }).click();
 
+        // Handle verification if enabled
+        await handleVerificationStepIfNeeded(page);
+
+        // Group Selection
         await expect(page.getByText('Find your Squad')).toBeVisible();
-        await page.getByText('Create Group', { exact: false }).click();
+        await page.locator('button:has-text("Create Group")').first().click();
 
         await expect(page.getByPlaceholder('e.g. The Avengers')).toBeVisible();
         await page.getByPlaceholder('e.g. The Avengers').fill('Logout Group');
@@ -72,8 +108,7 @@ test.describe('Authentication', () => {
         await page.goto('/settings');
         await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
 
-        // Click Log Out - might need scrolling or ensuring visibility
-        // It's in the profile tab which is default
+        // Click Log Out
         const logoutBtn = page.getByText('Log Out');
         await expect(logoutBtn).toBeVisible();
         await logoutBtn.click();
@@ -88,7 +123,7 @@ test.describe('Authentication', () => {
         const testPass = 'Password123';
 
         // Signup first to exist
-        await page.goto('/onboarding?step=1'); // Force default view
+        await page.goto('/onboarding?step=1');
         await expect(page.getByPlaceholder('e.g. Alice')).toBeVisible();
         await page.getByPlaceholder('e.g. Alice').fill('Login User');
         await page.getByRole('button', { name: 'Next Step' }).click();
@@ -98,8 +133,12 @@ test.describe('Authentication', () => {
         await page.locator('input[type="password"]').fill(testPass);
         await page.getByRole('button', { name: 'Continue' }).click();
 
+        // Handle verification if enabled
+        await handleVerificationStepIfNeeded(page);
+
+        // Group Selection
         await expect(page.getByText('Find your Squad')).toBeVisible();
-        await page.getByText('Create Group', { exact: false }).click();
+        await page.locator('button:has-text("Create Group")').first().click();
 
         await expect(page.getByPlaceholder('e.g. The Avengers')).toBeVisible();
         await page.getByPlaceholder('e.g. The Avengers').fill('Login Group');
@@ -112,15 +151,42 @@ test.describe('Authentication', () => {
         await expect(page).toHaveURL(/\/onboarding/);
 
         // Login
-        // Ensure we are on login view or toggle it
         await page.goto('/onboarding?view=login');
-        // Check for "Welcome Back"
         await expect(page.getByText('Welcome Back')).toBeVisible();
 
         await page.getByPlaceholder('you@example.com').fill(testEmail);
         await page.getByPlaceholder('••••••••').fill(testPass);
         await page.getByRole('button', { name: 'Log In' }).click();
 
+        await expect(page).toHaveURL('/dashboard');
+    });
+
+    test('User can skip group selection', async ({ page }) => {
+        const uniqueId = Date.now() + 3;
+        const email = `skip${uniqueId}@example.com`;
+        const password = 'Password123';
+        const displayName = `Skip User ${uniqueId}`;
+
+        await page.goto('/onboarding');
+
+        // Step 1: Display Name
+        await page.getByPlaceholder('e.g. Alice').fill(displayName);
+        await page.getByRole('button', { name: 'Next Step' }).click();
+
+        // Step 2: Email & Password
+        await expect(page.getByText('Secure Account')).toBeVisible();
+        await page.getByPlaceholder('you@example.com').fill(email);
+        await page.locator('input[type="password"]').fill(password);
+        await page.getByRole('button', { name: 'Continue' }).click();
+
+        // Handle verification if enabled
+        await handleVerificationStepIfNeeded(page);
+
+        // Group Selection - Click Skip
+        await expect(page.getByText('Find your Squad')).toBeVisible();
+        await page.getByText('Skip for now').click();
+
+        // Should be redirected to dashboard
         await expect(page).toHaveURL('/dashboard');
     });
 });

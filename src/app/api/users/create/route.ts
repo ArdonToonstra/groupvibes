@@ -1,6 +1,7 @@
 import { getPayload } from 'payload'
 import config from '@payload-config'
 import { NextResponse } from 'next/server'
+import { sendVerificationEmail } from '@/lib/email'
 
 export async function POST(request: Request) {
   try {
@@ -32,6 +33,17 @@ export async function POST(request: Request) {
       )
     }
 
+    // Check if email verification is enabled
+    const isVerificationEnabled = process.env.NEXT_PUBLIC_IS_VERIFICATION_ENABLED === 'true'
+
+    // Generate verification code only if verification is enabled
+    const verificationCode = isVerificationEnabled
+      ? Math.floor(100000 + Math.random() * 900000).toString()
+      : null
+    const verificationCodeExpiresAt = isVerificationEnabled
+      ? new Date(Date.now() + 30 * 60 * 1000) // 30 mins
+      : null
+
     // Create new user with provided credentials
     const user = await payload.create({
       collection: 'users',
@@ -39,6 +51,10 @@ export async function POST(request: Request) {
         email,
         password,
         displayName,
+        verificationCode,
+        verificationCodeExpiresAt: verificationCodeExpiresAt?.toISOString() ?? null,
+        lastVerificationEmailSentAt: isVerificationEnabled ? new Date().toISOString() : null,
+        isVerified: !isVerificationEnabled, // Auto-verify if verification is disabled
       },
     })
 
@@ -51,6 +67,13 @@ export async function POST(request: Request) {
       },
     })
 
+    // Send verification email only if verification is enabled
+    if (isVerificationEnabled && verificationCode) {
+      sendVerificationEmail({ to: email, code: verificationCode }).catch((err) => {
+        console.error('Failed to send verification email:', err)
+      })
+    }
+
     const response = NextResponse.json({
       user: {
         id: user.id,
@@ -62,7 +85,7 @@ export async function POST(request: Request) {
     // Set the JWT token in an HTTP-only cookie
     if (loginResult?.token) {
       // Calculate maxAge from expiration timestamp
-      const maxAge = loginResult.exp 
+      const maxAge = loginResult.exp
         ? loginResult.exp - Math.floor(Date.now() / 1000)
         : 7200 // Default to 2 hours
 
@@ -84,3 +107,4 @@ export async function POST(request: Request) {
     )
   }
 }
+
