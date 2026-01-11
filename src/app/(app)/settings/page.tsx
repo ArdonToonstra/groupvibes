@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
-import { ArrowLeft, Download, Trash2, User, Users, Copy, Check, LogOut, Loader2, LogOut as LeaveIcon, RefreshCw, AlertCircle } from 'lucide-react'
+import { ArrowLeft, Download, Trash2, User, Users, Copy, Check, LogOut, Loader2, LogOut as LeaveIcon, RefreshCw, AlertCircle, Plus, Hash } from 'lucide-react'
 
 // Sub-component for regeneration button state
 function RegenerateButton({ group, onUpdate }: { group: any, onUpdate: (g: any) => void }) {
@@ -355,17 +355,7 @@ function SettingsContent() {
                                 <p className="text-xs text-gray-400 mt-1">Contact support to change email.</p>
                             </div>
 
-                            {!group && (
-                                <div className="bg-orange-50 dark:bg-orange-900/20 p-4 rounded-xl text-orange-600 dark:text-orange-400 text-sm">
-                                    You are not in a group yet. <br />
-                                    <span
-                                        className="font-bold underline cursor-pointer"
-                                        onClick={() => router.push('/onboarding')} // Redirect to onboarding to create/join? Or handled here?
-                                    >
-                                        Go to Onboarding to Join/Create
-                                    </span>
-                                </div>
-                            )}
+
                         </Card>
 
                         <Card className="p-6 border-none shadow-sm rounded-2xl bg-white dark:bg-gray-800 space-y-4">
@@ -399,25 +389,34 @@ function SettingsContent() {
                 {activeTab === 'group' && !group && (
                     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
                         <Card className="p-6 border-none shadow-sm rounded-2xl bg-white dark:bg-gray-800 space-y-4">
-                            <h2 className="font-semibold text-gray-900 dark:text-white mb-2">You&apos;re Not in a Group</h2>
-                            <p className="text-sm text-gray-500 mb-4">
-                                Create a new group or join an existing one using an invite code.
-                            </p>
-                            <div className="space-y-3">
+                            <div>
+                                <h2 className="font-semibold text-gray-900 dark:text-white mb-1">No Group</h2>
+                                <p className="text-sm text-gray-500">
+                                    You are not currently in a group. Create one or join an existing one.
+                                </p>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
                                 <Button
                                     onClick={() => router.push('/onboarding?step=3&action=create')}
-                                    className="w-full h-12 rounded-xl gap-2 bg-primary"
+                                    variant="outline"
+                                    className="h-32 flex flex-col gap-3 rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700 hover:border-primary hover:bg-blue-50 dark:hover:bg-blue-900/10 hover:text-primary transition-all shadow-none"
                                 >
-                                    <Users className="w-5 h-5" />
-                                    Create New Group
+                                    <div className="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-primary">
+                                        <Plus className="w-6 h-6" />
+                                    </div>
+                                    <span className="font-semibold">Create Group</span>
                                 </Button>
+
                                 <Button
                                     onClick={() => router.push('/onboarding?step=3&action=join')}
                                     variant="outline"
-                                    className="w-full h-12 rounded-xl gap-2"
+                                    className="h-32 flex flex-col gap-3 rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700 hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-purple-900/10 hover:text-purple-600 transition-all shadow-none"
                                 >
-                                    <Users className="w-5 h-5" />
-                                    Join with Invite Code
+                                    <div className="w-12 h-12 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center text-purple-600">
+                                        <Hash className="w-6 h-6" />
+                                    </div>
+                                    <span className="font-semibold">Join with Invite Code</span>
                                 </Button>
                             </div>
                         </Card>

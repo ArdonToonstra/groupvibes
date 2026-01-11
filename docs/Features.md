@@ -4,21 +4,9 @@
 TODO
 
 * create testcases
-* install github workflows
-* Make delete account work
 * add email confirmation
 * add better context tags (like drug hangover)
 
-
-## Authentication & Onboarding
-
-- **User Onboarding:**
-  - Set display name
-  - Join group via invite code or create new group
-- **Permissions:** Prompt for browser push notifications on first login
-- **Account Management:**
-  - Edit profile (name/color)
-  - Delete account: Full data wipe (check-ins, profile, user record)
 
 ---
 
