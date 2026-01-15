@@ -5,7 +5,9 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
-import { ArrowLeft, Download, Trash2, User, Users, Copy, Check, LogOut, Loader2, LogOut as LeaveIcon, RefreshCw, AlertCircle, Plus, Hash, Smartphone } from 'lucide-react'
+import { LoadingSpinner } from '@/components/ui/loading-spinner'
+import { PageHeader } from '@/components/ui/page-header'
+import { Download, Trash2, User, Users, Copy, Check, LogOut, Loader2, LogOut as LeaveIcon, RefreshCw, AlertCircle, Plus, Hash, Smartphone } from 'lucide-react'
 
 // Sub-component for regeneration button state
 function RegenerateButton({ group, onUpdate }: { group: any, onUpdate: (g: any) => void }) {
@@ -279,20 +281,12 @@ function SettingsContent() {
         return null
     }
 
-    if (loading) return <div className="p-10 text-center">Loading settings...</div>
+    if (loading) return <LoadingSpinner message="Loading settings..." />
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20">
             {/* Header */}
-            <div className="sticky top-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md z-10 p-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                    <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full">
-                        <ArrowLeft className="w-5 h-5 text-gray-500" />
-                    </Button>
-                    <h1 className="text-xl font-bold text-gray-900 dark:text-white">Settings</h1>
-                </div>
-                <div />
-            </div>
+            <PageHeader title="Settings" showBackButton maxWidth="2xl" />
 
 
             <div className="max-w-2xl mx-auto p-4 space-y-6">
@@ -550,7 +544,7 @@ function SettingsContent() {
 
 export default function SettingsPage() {
     return (
-        <Suspense fallback={<div className="p-10 text-center">Loading settings...</div>}>
+        <Suspense fallback={<LoadingSpinner message="Loading settings..." />}>
             <SettingsContent />
         </Suspense>
     )

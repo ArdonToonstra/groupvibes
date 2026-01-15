@@ -2,6 +2,8 @@
 
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { LoadingSpinner } from "@/components/ui/loading-spinner"
+import { PageHeader } from "@/components/ui/page-header"
 import { Users, Zap, Settings, Activity } from "lucide-react"
 import Link from 'next/link'
 import { useEffect, useState } from "react"
@@ -44,14 +46,7 @@ export default function DashboardPage() {
   }, [router])
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <div className="animate-pulse flex flex-col items-center">
-          <Zap className="w-8 h-8 text-gray-300 mb-4" />
-          <div className="h-4 w-32 bg-gray-200 rounded"></div>
-        </div>
-      </div>
-    )
+    return <LoadingSpinner />
   }
 
   if (!data) return null; // Or error state
@@ -75,23 +70,26 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-100 via-gray-50 to-gray-50 dark:from-blue-900/20 dark:via-gray-900 dark:to-gray-900 font-sans pb-20">
 
       {/* Header */}
-      <div className="sticky top-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md z-10 p-4 border-b border-gray-100 dark:border-gray-800">
-        <div className="max-w-md mx-auto flex items-center justify-between">
+      <PageHeader
+        title={
           <div className="flex items-center gap-2">
             <div className="bg-primary/10 p-1.5 rounded-lg">
               <Zap className="w-5 h-5 text-primary" />
             </div>
-            <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-400">
+            <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-400">
               {data.groupName}
-            </h1>
+            </span>
           </div>
+        }
+        maxWidth="md"
+        rightContent={
           <Link href="/settings">
             <Button variant="ghost" size="icon" className="rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
               <Settings className="w-5 h-5 text-gray-500" />
             </Button>
           </Link>
-        </div>
-      </div>
+        }
+      />
 
       <div className="max-w-md mx-auto p-4 space-y-6">
 
