@@ -5,8 +5,10 @@ import * as schema from './schema'
 // Create postgres connection
 const connectionString = process.env.DATABASE_URI!
 
-// For queries
-const queryClient = postgres(connectionString)
+// For queries - enable SSL for cloud databases like Neon
+const queryClient = postgres(connectionString, {
+  ssl: process.env.NODE_ENV === 'production' ? 'require' : false,
+})
 
 // Create drizzle instance with schema
 export const db = drizzle(queryClient, { schema })
