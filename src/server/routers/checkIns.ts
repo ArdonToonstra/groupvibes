@@ -3,6 +3,9 @@ import { eq, desc, and, gt, isNull, sql } from 'drizzle-orm'
 import { createTRPCRouter, protectedProcedure } from '../trpc'
 import { checkIns } from '@/db/schema'
 
+// 24 hours in milliseconds
+const EDIT_WINDOW_MS = 24 * 60 * 60 * 1000
+
 export const checkInsRouter = createTRPCRouter({
   // Get check-ins (user's own or group's)
   list: protectedProcedure
@@ -85,4 +88,45 @@ export const checkInsRouter = createTRPCRouter({
     
     return latest ?? null
   }),
+
+  // Update a check-in (only own, within 24 hours)
+  update: protectedProcedure
+    .input(z.object({
+      id: z.number(),
+      vibeScore: z.number().min(1).max(10),
+      tags: z.array(z.string()).optional(),
+      customNote: z.string().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const checkIn = await ctx.db.query.checkIns.findFirst({
+        where: eq(checkIns.id, input.id),
+      })
+      
+      if (!checkIn) {
+        throw new Error('Check-in not found')
+      }
+      
+      if (checkIn.userId !== ctx.user.id) {
+        throw new Error('Unauthorized: You can only edit your own check-ins')
+      }
+      
+      // Check if within 24-hour edit window
+      const createdAt = new Date(checkIn.createdAt).getTime()
+      const now = Date.now()
+      if (now - createdAt > EDIT_WINDOW_MS) {
+        throw new Error('Check-ins can only be edited within 24 hours of creation')
+      }
+      
+      const [updatedCheckIn] = await ctx.db.update(checkIns)
+        .set({
+          vibeScore: input.vibeScore,
+          tags: input.tags ?? [],
+          customNote: input.customNote,
+          updatedAt: new Date(),
+        })
+        .where(eq(checkIns.id, input.id))
+        .returning()
+      
+      return updatedCheckIn
+    }),
 })

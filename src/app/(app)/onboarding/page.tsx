@@ -302,8 +302,7 @@ function OnboardingContent() {
     setLoading(true)
     setError('')
     try {
-      const result = await createGroupMutation.mutateAsync({ name: groupName })
-      alert(`Group created! Invite code: ${result.group.inviteCode}`)
+      await createGroupMutation.mutateAsync({ name: groupName })
       router.push('/dashboard')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')

@@ -10,10 +10,13 @@ import { CheckinCard } from "@/components/stats/CheckinCard"
 import { StatsView } from "@/components/stats/StatsView"
 import { VibeHeatmap } from "@/components/stats/VibeHeatmap"
 import { trpc } from "@/lib/trpc"
+import { useSession } from "@/lib/auth-client"
 
 export default function MyStatsPage() {
     const router = useRouter()
     const [activeTab, setActiveTab] = useState<'feed' | 'insights' | 'heatmap'>('feed')
+    const { data: session } = useSession()
+    const currentUserId = session?.user?.id
 
     const { data, isLoading, error } = trpc.checkIns.list.useQuery({ scope: 'user' }, {
         retry: false,
@@ -71,7 +74,7 @@ export default function MyStatsPage() {
                         {activeTab === 'feed' && (
                             <div className="space-y-4">
                                 {checkins.map((checkin) => (
-                                    <CheckinCard key={checkin.id} checkin={checkin} showUser={true} />
+                                    <CheckinCard key={checkin.id} checkin={checkin} showUser={true} currentUserId={currentUserId} />
                                 ))}
                             </div>
                         )}

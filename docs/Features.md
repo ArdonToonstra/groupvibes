@@ -1,9 +1,13 @@
 # STATELINK – TO DO's
 
 
-* create testcases
+* remove the popup after creating group in onboarding 
 * add email confirmation
-- Be able to change the ratings from the last 24 hours.
+* add password reset
+* download should contain the vibe checkin codes
+* be able to change the ratings from the last 24 hours.
+* confirm that the vibe coding is showing the last 7 days correctly.
+* create testcases
 
 ---
 
