@@ -9,19 +9,19 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { PageHeader } from '@/components/ui/page-header'
 import { Download, Trash2, User, Users, Copy, Check, LogOut, Loader2, LogOut as LeaveIcon, RefreshCw, AlertCircle, Plus, Hash, Smartphone } from 'lucide-react'
 import { authClient } from '@/lib/auth-client'
+import { trpc } from '@/lib/trpc'
 
 // Sub-component for regeneration button state
 function RegenerateButton({ group, onUpdate }: { group: any, onUpdate: (g: any) => void }) {
     const [status, setStatus] = useState<'idle' | 'confirm' | 'generating'>('idle')
+    const regenerateMutation = trpc.groups.regenerateInviteCode.useMutation()
 
     const handleClick = async (e: React.MouseEvent) => {
-        // Prevent any default behavior immediately
         e.preventDefault()
         e.stopPropagation()
 
         if (status === 'idle') {
             setStatus('confirm')
-            // Reset after 3 seconds if not confirmed
             setTimeout(() => {
                 setStatus(prev => prev === 'confirm' ? 'idle' : prev)
             }, 3000)
@@ -31,24 +31,12 @@ function RegenerateButton({ group, onUpdate }: { group: any, onUpdate: (g: any) 
         if (status === 'confirm') {
             setStatus('generating')
             try {
-                const res = await fetch('/api/groups/regenerate', {
-                    method: 'POST',
-                    credentials: 'include',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ groupId: group.id })
+                const data = await regenerateMutation.mutateAsync({ groupId: group.id })
+                onUpdate({
+                    ...group,
+                    inviteCode: data.inviteCode,
+                    inviteCodeCreated: data.inviteCodeCreated
                 })
-
-                if (res.ok) {
-                    const data = await res.json()
-                    onUpdate({
-                        ...group,
-                        inviteCode: data.inviteCode,
-                        inviteCodeCreated: data.inviteCodeCreated
-                    })
-                    // Success feedback
-                } else {
-                    alert("Failed to generate code")
-                }
             } catch (e) {
                 console.error(e)
                 alert("Error generating code")
@@ -113,34 +101,35 @@ function SettingsContent() {
     const [copied, setCopied] = useState(false)
     const [saveStatus, setSaveStatus] = useState<{ field: string, status: 'saving' | 'saved' | 'idle' }>({ field: '', status: 'idle' })
 
-    useEffect(() => {
-        const fetchSettings = async () => {
-            try {
-                const res = await fetch('/api/settings', {
-                    credentials: 'include'
-                })
-                if (res.status === 401) {
-                    router.push('/onboarding')
-                    return
-                }
-                if (res.ok) {
-                    const data = await res.json()
-                    setUser(data.user)
-                    setGroup(data.group)
+    // tRPC queries and mutations
+    const settingsQuery = trpc.settings.getData.useQuery(undefined, {
+        retry: false,
+    })
+    const updateProfileMutation = trpc.users.updateProfile.useMutation()
+    const updateGroupMutation = trpc.groups.update.useMutation()
+    const leaveGroupMutation = trpc.users.leaveGroup.useMutation()
+    const removeGroupMemberMutation = trpc.groups.removeMember.useMutation()
+    const deleteAccountMutation = trpc.users.deleteAccount.useMutation()
 
-                    setDisplayName(data.user.displayName || '')
-                    if (data.group) {
-                        setGroupName(data.group.name || '')
-                    }
-                }
-            } catch (e) {
-                console.error(e)
-            } finally {
-                setLoading(false)
-            }
+    // Redirect if unauthorized
+    useEffect(() => {
+        if (settingsQuery.error?.data?.code === 'UNAUTHORIZED') {
+            router.push('/onboarding')
         }
-        fetchSettings()
-    }, [router])
+    }, [settingsQuery.error, router])
+
+    // Initialize form state when data loads
+    useEffect(() => {
+        if (settingsQuery.data) {
+            setUser(settingsQuery.data.user)
+            setGroup(settingsQuery.data.group)
+            setDisplayName(settingsQuery.data.user.displayName || '')
+            if (settingsQuery.data.group) {
+                setGroupName(settingsQuery.data.group.name || '')
+            }
+            setLoading(false)
+        }
+    }, [settingsQuery.data])
 
 
     const handleCopyCode = () => {
@@ -152,33 +141,27 @@ function SettingsContent() {
     }
 
     const handleRemoveMember = async (memberId: string) => {
-        if (!user.isGroupOwner) return; // Guard
+        if (!user.isGroupOwner) return
 
         if (confirm('Are you sure you want to remove this member?')) {
             // Optimistic update
             const updatedMembers = group.members.filter((m: any) => m.id !== memberId)
             setGroup({ ...group, members: updatedMembers })
 
-            // API
-            await fetch('/api/settings', {
-                method: 'PUT',
-                credentials: 'include',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ type: 'group', data: { removeMemberId: memberId } })
-            })
+            try {
+                await removeGroupMemberMutation.mutateAsync({ groupId: group.id, memberId })
+            } catch (e) {
+                console.error(e)
+                // Revert on error
+                setGroup(group)
+            }
         }
     }
 
     const handleLeaveGroup = async () => {
         if (confirm('Are you sure you want to leave this group?')) {
             try {
-                await fetch('/api/settings', {
-                    method: 'PUT',
-                    credentials: 'include',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ type: 'leave_group' })
-                })
-                // Refresh to show "Join" state
+                await leaveGroupMutation.mutateAsync()
                 setGroup(null)
                 setActiveTab('profile')
             } catch (e) {
@@ -190,21 +173,16 @@ function SettingsContent() {
 
     // Auto-Save Handler
     const handleAutoSave = async (field: string, value: string) => {
-        // Only owner can edit group name
         if (field === 'groupName' && !user.isGroupOwner) return
 
         setSaveStatus({ field, status: 'saving' })
 
-        const type = field === 'displayName' ? 'profile' : 'group'
-        const payload = field === 'displayName' ? { displayName: value } : { name: value }
-
         try {
-            await fetch('/api/settings', {
-                method: 'PUT',
-                credentials: 'include',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ type, data: payload })
-            })
+            if (field === 'displayName') {
+                await updateProfileMutation.mutateAsync({ displayName: value })
+            } else if (field === 'groupName' && group) {
+                await updateGroupMutation.mutateAsync({ groupId: group.id, name: value })
+            }
 
             setSaveStatus({ field, status: 'saved' })
             setTimeout(() => {
@@ -238,22 +216,17 @@ function SettingsContent() {
     const handleDeleteAccount = async () => {
         if (confirm('DANGER: This will permanently delete your account and all data. This cannot be undone. Continue?')) {
             try {
-                const res = await fetch('/api/users/delete', {
-                    method: 'DELETE',
-                    credentials: 'include'
-                })
-
-                if (!res.ok) {
-                    const data = await res.json()
-                    alert(data.error || 'Failed to delete account')
-                    return
+                await deleteAccountMutation.mutateAsync()
+                // Sign out after deletion
+                try {
+                    await authClient.signOut()
+                } catch (e) {
+                    // Ignore signout errors since account is deleted
                 }
-
-                alert('Account deleted successfully.')
                 router.push('/onboarding')
-            } catch (e) {
-                console.error('Delete account error:', e)
-                alert('Failed to delete account. Please try again.')
+            } catch (e: any) {
+                console.error(e)
+                alert(e.message || 'Failed to delete account')
             }
         }
     }

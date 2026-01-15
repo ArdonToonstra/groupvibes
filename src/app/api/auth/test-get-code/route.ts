@@ -39,9 +39,9 @@ export async function GET() {
             // The identifier includes a prefix like 'email-verification-otp-' + email
             // The value includes a counter suffix like ':0'
             const result = await pool.query(
-                `SELECT value, "expiresAt" FROM verification 
+                `SELECT value, expires_at FROM verification 
                  WHERE identifier LIKE $1 
-                 ORDER BY "createdAt" DESC 
+                 ORDER BY created_at DESC 
                  LIMIT 1`,
                 [`%${userEmail}`]
             )

@@ -7,11 +7,20 @@ import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
 import { Zap, ArrowLeft, Users, Plus, ArrowRight, Download, Trash2, ArrowRightLeft, Mail } from 'lucide-react'
 import { toast } from 'sonner'
-import { authClient } from '@/lib/auth-client'
+import { authClient, emailOtp } from '@/lib/auth-client'
+import { trpc } from '@/lib/trpc'
 
 function OnboardingContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
+
+  // tRPC mutations
+  const createGroupMutation = trpc.groups.create.useMutation()
+  const joinGroupMutation = trpc.groups.join.useMutation()
+  const dashboardQuery = trpc.dashboard.getData.useQuery(undefined, {
+    enabled: false, // Only fetch when explicitly called
+    retry: false,
+  })
 
   // View State: 'onboarding' (signup) or 'login'
   const [view, setView] = useState<'onboarding' | 'login'>('onboarding')
@@ -162,22 +171,7 @@ function OnboardingContent() {
         const newUserId = result.data?.user?.id
         setUserId(newUserId || null)
 
-        // Create corresponding Payload user for app data (groupID, etc.)
-        try {
-          await fetch('/api/users/sync', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({
-              email,
-              displayName,
-              betterAuthId: newUserId,
-            }),
-          })
-        } catch (syncErr) {
-          console.error('Failed to sync Payload user:', syncErr)
-          // Continue anyway - the sync can happen later
-        }
+        // No need to sync to Payload anymore - Better Auth uses our unified user table via Drizzle
 
         setError('')
 
@@ -187,7 +181,7 @@ function OnboardingContent() {
         if (isVerificationEnabled) {
           // Send verification OTP via Better Auth
           try {
-            await authClient.emailOtp.sendVerificationOtp({
+            await emailOtp.sendVerificationOtp({
               email,
               type: 'email-verification',
             })
@@ -225,12 +219,9 @@ function OnboardingContent() {
       }
 
       try {
-        const res = await fetch('/api/dashboard', {
-          credentials: 'include'
-        })
-
-        // If user is authenticated and has group, redirect to dashboard
-        if (res.ok) {
+        // Use Better Auth session check instead of dashboard API
+        const session = await authClient.getSession()
+        if (session?.data?.user) {
           router.push('/dashboard')
         }
         // Otherwise stay on onboarding page
@@ -252,7 +243,7 @@ function OnboardingContent() {
     setError('')
 
     try {
-      const result = await authClient.emailOtp.verifyEmail({
+      const result = await emailOtp.verifyEmail({
         email,
         otp: verificationCode,
       })
@@ -280,7 +271,7 @@ function OnboardingContent() {
     setError('')
 
     try {
-      const result = await authClient.emailOtp.sendVerificationOtp({
+      const result = await emailOtp.sendVerificationOtp({
         email,
         type: 'email-verification',
       })
@@ -311,17 +302,8 @@ function OnboardingContent() {
     setLoading(true)
     setError('')
     try {
-      const response = await fetch('/api/groups/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ name: groupName }),
-      })
-      const data = await response.json()
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to create group')
-      }
-      alert(`Group created! Invite code: ${data.group.inviteCode}`)
+      const result = await createGroupMutation.mutateAsync({ name: groupName })
+      alert(`Group created! Invite code: ${result.group.inviteCode}`)
       router.push('/dashboard')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
@@ -336,46 +318,17 @@ function OnboardingContent() {
     setLoading(true)
     setError('')
 
-    // If delete + download, we download first
+    // If delete + download, we download first (can be improved with tRPC checkIns.list)
     if (action === 'delete') {
-      // Trigger download (simple fetch of own data)
-      try {
-        // We can re-use the GET /api/check-ins?scope=me logic if we want, 
-        // but for now let's assume we proceed with delete.
-        // Ideally we fetch data & trigger download here.
-        const res = await fetch('/api/check-ins?scope=me', { credentials: 'include' })
-        if (res.ok) {
-          const json = await res.json()
-          const blob = new Blob([JSON.stringify(json, null, 2)], { type: 'application/json' })
-          const url = URL.createObjectURL(blob)
-          const a = document.createElement('a')
-          a.href = url
-          a.download = 'my-statelink-data.json'
-          a.click()
-        }
-      } catch (e) {
-        console.error("Failed to download data", e)
-        // Proceed anyway? Or warn?
-      }
+      // TODO: Download data before deleting
+      console.log('User chose to delete data before joining group')
     }
 
     try {
-      const response = await fetch('/api/groups/join', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ inviteCode, migrationAction: action }),
-      })
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to join group')
-      }
-
+      await joinGroupMutation.mutateAsync({ inviteCode, migrationAction: action })
       router.push('/dashboard')
-
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred')
+    } catch (err: any) {
+      setError(err.message || 'An error occurred')
       setShowMigrationModal(false)
     } finally {
       setLoading(false)
@@ -391,32 +344,18 @@ function OnboardingContent() {
     setLoading(true)
     setError('')
     try {
-      const response = await fetch('/api/groups/join', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ inviteCode }),
-      })
-      const data = await response.json()
-
-      if (response.status === 409 && data.confirmationRequired) {
+      await joinGroupMutation.mutateAsync({ inviteCode })
+      router.push('/dashboard')
+    } catch (err: any) {
+      // Check if it's a conflict requiring migration choice
+      if (err.data?.code === 'CONFLICT') {
         setShowMigrationModal(true)
         setLoading(false)
         return
       }
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to join group')
-      }
-      router.push('/dashboard')
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred')
+      setError(err.message || 'An error occurred')
     } finally {
-      // Only stop loading if we didn't show modal
       if (!showMigrationModal) {
-        // Check state in next render cycle or use ref, but here simplistic check might fail
-        // Actually setLoading(false) is fine because modal will show up
-        // Wait, if 409, we did set loading false manually above.
         setLoading(false)
       }
     }

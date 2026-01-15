@@ -1,15 +1,20 @@
 import { betterAuth } from 'better-auth'
 import { emailOTP } from 'better-auth/plugins'
-import { Pool } from 'pg'
+import { drizzleAdapter } from 'better-auth/adapters/drizzle'
+import { db } from '@/db'
+import * as schema from '@/db/schema'
 import { sendVerificationEmail } from '@/lib/email'
 
-// Create PostgreSQL pool for Better Auth
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URI,
-})
-
 export const auth = betterAuth({
-  database: pool,
+  database: drizzleAdapter(db, {
+    provider: 'pg',
+    schema: {
+      user: schema.users,
+      session: schema.sessions,
+      account: schema.accounts,
+      verification: schema.verifications,
+    },
+  }),
   
   // Use email/password authentication
   emailAndPassword: {
@@ -29,16 +34,14 @@ export const auth = betterAuth({
     },
   },
 
-  // User fields - Better Auth will create its own user table
-  // We'll sync to Payload's users collection for app data
+  // User fields - these are now stored directly in our users table
   user: {
     additionalFields: {
       displayName: {
         type: 'string',
         required: true,
       },
-      // We'll store the Payload user ID for relationship mapping
-      payloadUserId: {
+      groupId: {
         type: 'string',
         required: false,
       },

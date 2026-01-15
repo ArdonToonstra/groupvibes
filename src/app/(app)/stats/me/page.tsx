@@ -5,40 +5,28 @@ import { Button } from "@/components/ui/button"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { PageHeader } from "@/components/ui/page-header"
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from "react"
+import { useState, useEffect } from "react"
 import { CheckinCard } from "@/components/stats/CheckinCard"
 import { StatsView } from "@/components/stats/StatsView"
 import { VibeHeatmap } from "@/components/stats/VibeHeatmap"
+import { trpc } from "@/lib/trpc"
 
 export default function MyStatsPage() {
     const router = useRouter()
     const [activeTab, setActiveTab] = useState<'feed' | 'insights' | 'heatmap'>('feed')
-    const [checkins, setCheckins] = useState<any[]>([])
-    const [loading, setLoading] = useState(true)
+
+    const { data, isLoading, error } = trpc.checkIns.list.useQuery({ scope: 'user' }, {
+        retry: false,
+    })
 
     useEffect(() => {
-        const fetchFeed = async () => {
-            try {
-                // Fetch only my checkins - user determined by JWT
-                const res = await fetch('/api/check-ins', {
-                    credentials: 'include'
-                })
-                if (res.status === 401) {
-                    router.push('/onboarding')
-                    return
-                }
-                if (res.ok) {
-                    const data = await res.json()
-                    setCheckins(data.docs || [])
-                }
-            } catch (e) {
-                console.error(e)
-            } finally {
-                setLoading(false)
-            }
+        if (error?.data?.code === 'UNAUTHORIZED') {
+            router.push('/onboarding')
         }
-        fetchFeed()
-    }, [router])
+    }, [error, router])
+
+    const checkins = data?.docs || []
+    const loading = isLoading
 
     const tabToggle = (
         <div className="flex bg-gray-100 dark:bg-gray-800 rounded-lg p-1">

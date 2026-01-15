@@ -39,6 +39,7 @@ import {
   GlassWater
 } from 'lucide-react'
 import { format } from 'date-fns'
+import { trpc } from '@/lib/trpc'
 
 const VIBE_OPTIONS = [
   { value: 10, label: 'wonderful', color: '#10B981', icon: Laugh },
@@ -108,42 +109,34 @@ export default function CheckInPage() {
     )
   }
 
+  const createCheckIn = trpc.checkIns.create.useMutation({
+    onSuccess: () => {
+      router.push('/dashboard')
+    },
+    onError: (error) => {
+      if (error.data?.code === 'UNAUTHORIZED') {
+        router.push('/onboarding')
+        return
+      }
+      console.error(error)
+      alert("Failed to save check-in")
+      setSaving(false)
+    },
+  })
+
   const handleSave = async () => {
     if (!vibe) return
     setSaving(true)
 
-    try {
-      // Collect data
-      const selectedActivitiesList = ALL_ACTIVITIES.filter(a => selectedActivities.includes(a.id))
-      const tags = selectedActivitiesList.map(a => a.label) // Send labels as tags
+    // Collect data
+    const selectedActivitiesList = ALL_ACTIVITIES.filter(a => selectedActivities.includes(a.id))
+    const tags = selectedActivitiesList.map(a => a.label)
 
-      const res = await fetch('/api/check-ins', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          // VIBE_OPTIONS values are already 2, 4, 6, 8, 10.
-          // So `vibe` state already holds the 1-10 scale value.
-          vibeScore: vibe,
-          tags,
-          customNote: note
-        })
-      })
-
-      if (res.status === 401) {
-        router.push('/onboarding')
-        return
-      }
-
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error || "Failed to save")
-
-      router.push('/dashboard')
-    } catch (e) {
-      console.error(e)
-      alert("Failed to save check-in")
-      setSaving(false)
-    }
+    createCheckIn.mutate({
+      vibeScore: vibe,
+      tags,
+      customNote: note || undefined,
+    })
   }
 
   // Activities to display in main grid

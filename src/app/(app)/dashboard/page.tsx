@@ -6,46 +6,22 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { PageHeader } from "@/components/ui/page-header"
 import { Users, Zap, Settings, Activity } from "lucide-react"
 import Link from 'next/link'
-import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import { trpc } from "@/lib/trpc"
 
 export default function DashboardPage() {
   const router = useRouter()
-  const [loading, setLoading] = useState(true)
-  const [data, setData] = useState<{
-    groupPulse: string | null,
-    memberCount: number,
-    userLastVibe: any, // Checkin object
-    groupName: string
-  } | null>(null)
+  const { data, isLoading, error } = trpc.dashboard.getData.useQuery(undefined, {
+    retry: false,
+  })
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const res = await fetch('/api/dashboard', {
-          credentials: 'include' // Include cookies in the request
-        })
+  // Redirect to onboarding if not authenticated
+  if (error?.data?.code === 'UNAUTHORIZED') {
+    router.push('/onboarding')
+    return null
+  }
 
-        if (res.status === 401) {
-          // Not authenticated, redirect to onboarding
-          router.push('/onboarding')
-          return
-        }
-
-        if (!res.ok) throw new Error('Failed to fetch')
-        const json = await res.json()
-        // Check if user has no group (should handle in UI)
-        setData(json)
-      } catch (e) {
-        console.error(e)
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchData()
-  }, [router])
-
-  if (loading) {
+  if (isLoading) {
     return <LoadingSpinner />
   }
 
