@@ -9,6 +9,7 @@ import { Zap, ArrowLeft, Users, Plus, ArrowRight, Download, Trash2, ArrowRightLe
 import { toast } from 'sonner'
 import { authClient, emailOtp } from '@/lib/auth-client'
 import { trpc } from '@/lib/trpc'
+import Link from 'next/link'
 
 function OnboardingContent() {
   const router = useRouter()
@@ -416,7 +417,7 @@ function OnboardingContent() {
                 <div>
                   <div className="flex justify-between mb-2">
                     <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 pl-1">Password</label>
-                    <span className="text-xs text-primary cursor-pointer hover:underline">Forgot?</span>
+                    <Link href="/forgot-password" className="text-xs text-primary cursor-pointer hover:underline">Forgot?</Link>
                   </div>
                   <Input
                     type="password"

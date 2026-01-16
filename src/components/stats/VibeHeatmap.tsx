@@ -48,7 +48,7 @@ export function VibeHeatmap({ checkins }: VibeHeatmapProps) {
 
         const avg = stat.avg
         // Matching check-in colors:
-        // 10: Rad (Emerald)
+        // 10: Wonderful (Emerald)
         // 8: Good (Lime)
         // 6: Meh (Blue)
         // 4: Bad (Amber)
@@ -139,7 +139,7 @@ export function VibeHeatmap({ checkins }: VibeHeatmapProps) {
                     <div className="w-2.5 h-2.5 rounded-full bg-lime-500"></div> Good
                 </div>
                 <div className="flex items-center gap-1">
-                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-500"></div> Rad
+                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-500"></div> Wonderful
                 </div>
             </div>
         </Card>

@@ -7,9 +7,10 @@ import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { PageHeader } from '@/components/ui/page-header'
-import { Download, Trash2, User, Users, Copy, Check, LogOut, Loader2, LogOut as LeaveIcon, RefreshCw, AlertCircle, Plus, Hash, Smartphone, Bell, BellOff, Clock, Zap } from 'lucide-react'
+import { Download, Trash2, User, Users, Copy, Check, LogOut, Loader2, LogOut as LeaveIcon, RefreshCw, AlertCircle, Plus, Hash, Smartphone, Bell, BellOff, Clock, Zap, Mail, Key } from 'lucide-react'
 import { authClient } from '@/lib/auth-client'
 import { trpc } from '@/lib/trpc'
+import Link from 'next/link'
 
 // Helper to subscribe to push notifications
 async function subscribeToPush(): Promise<PushSubscription | null> {
@@ -305,14 +306,24 @@ function SettingsContent() {
         }
     }
 
-    const handleDownloadData = () => {
-        const data = JSON.stringify({ user, group }, null, 2)
-        const blob = new Blob([data], { type: 'application/json' })
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = 'statelink-data.json'
-        a.click()
+    const handleDownloadData = async () => {
+        try {
+            const response = await fetch('/api/settings')
+            if (!response.ok) {
+                throw new Error('Failed to fetch data')
+            }
+            const data = await response.json()
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+            const url = URL.createObjectURL(blob)
+            const a = document.createElement('a')
+            a.href = url
+            a.download = 'statelink-data.json'
+            a.click()
+            URL.revokeObjectURL(url)
+        } catch (e) {
+            console.error('Error downloading data:', e)
+            alert('Failed to download data')
+        }
     }
 
     const handleLogout = async () => {
@@ -423,12 +434,19 @@ function SettingsContent() {
                                 <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">
                                     Email Address
                                 </label>
-                                <Input
-                                    value={user.email}
-                                    disabled
-                                    className="h-12 bg-gray-50 dark:bg-gray-900 border-transparent opacity-60"
-                                />
-                                <p className="text-xs text-gray-400 mt-1">Contact support to change email.</p>
+                                <div className="flex gap-2">
+                                    <Input
+                                        value={user.email}
+                                        disabled
+                                        className="h-12 bg-gray-50 dark:bg-gray-900 border-transparent opacity-60 flex-1"
+                                    />
+                                    <Link href="/change-email">
+                                        <Button variant="outline" className="h-12 px-4">
+                                            <Mail className="w-4 h-4 mr-2" />
+                                            Change
+                                        </Button>
+                                    </Link>
+                                </div>
                             </div>
 
 

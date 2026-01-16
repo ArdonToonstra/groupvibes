@@ -3,7 +3,7 @@ import { emailOTP } from 'better-auth/plugins'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { db } from '@/db'
 import * as schema from '@/db/schema'
-import { sendVerificationEmail } from '@/lib/email'
+import { sendVerificationEmail, sendPasswordResetEmail, sendEmailChangeVerification } from '@/lib/email'
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
@@ -23,19 +23,50 @@ export const auth = betterAuth({
     minPasswordLength: 8,
     // Auto sign-in after signup (we handle verification separately)
     autoSignIn: true,
-  },
-
-  // JWT mode (no database sessions) as requested
-  session: {
-    // Use cookie-based JWT sessions
-    cookieCache: {
-      enabled: true,
-      maxAge: 60 * 60 * 2, // 2 hours
+    // Forgot password configuration
+    sendResetPassword: async ({ user, url }) => {
+      console.log(`[BETTER-AUTH] Sending password reset email to ${user.email}`)
+      await sendPasswordResetEmail({
+        to: user.email,
+        resetUrl: url,
+      })
     },
   },
 
-  // User fields - these are now stored directly in our users table
+  // Email verification settings
+  emailVerification: {
+    sendOnSignUp: process.env.NEXT_PUBLIC_IS_VERIFICATION_ENABLED === 'true',
+    autoSignInAfterVerification: true,
+    sendVerificationEmail: async ({ user, url }) => {
+      // For email change verification, we use OTP instead
+      console.log(`[BETTER-AUTH] Sending email verification to ${user.email}`)
+      // Extract token from URL for OTP-style verification
+      const token = new URL(url).searchParams.get('token') || ''
+      await sendVerificationEmail({
+        to: user.email,
+        code: token.substring(0, 6).toUpperCase(), // Use first 6 chars as display code
+      })
+    },
+  },
+
+  // User fields - changeEmail configuration
   user: {
+    changeEmail: {
+      enabled: true,
+      sendChangeEmailVerification: async ({ user, newEmail, url }) => {
+        console.log(`[BETTER-AUTH] Sending email change verification to ${newEmail}`)
+        // Extract verification code/token from URL
+        const token = new URL(url).searchParams.get('token') || ''
+        const code = token.substring(0, 6).toUpperCase()
+        
+        // Send to new email
+        await sendEmailChangeVerification({
+          to: newEmail,
+          code: code,
+          isNewEmail: true,
+        })
+      },
+    },
     additionalFields: {
       displayName: {
         type: 'string',
@@ -45,6 +76,15 @@ export const auth = betterAuth({
         type: 'string',
         required: false,
       },
+    },
+  },
+
+  // JWT mode (no database sessions) as requested
+  session: {
+    // Use cookie-based JWT sessions
+    cookieCache: {
+      enabled: true,
+      maxAge: 60 * 60 * 2, // 2 hours
     },
   },
 

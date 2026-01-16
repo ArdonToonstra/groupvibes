@@ -122,9 +122,8 @@ export default function DashboardPage() {
         )}
 
         {/* Core Action */}
-        {/* Core Action */}
         <Link href="/check-in" className="block transform transition-transform active:scale-95">
-          <Button className="w-full h-20 text-xl rounded-3xl font-bold shadow-2xl shadow-primary/50 bg-gradient-to-br from-primary to-emerald-600 hover:from-primary/90 hover:to-emerald-700 border-t border-white/20">
+          <Button className="w-full h-20 text-xl rounded-3xl font-bold shadow-2xl shadow-emerald-500/40 bg-gradient-to-r from-emerald-400 via-green-500 to-teal-500 hover:from-emerald-500 hover:via-green-600 hover:to-teal-600">
             <Zap className="mr-3 w-8 h-8 fill-white" />
             Check In Now
           </Button>
