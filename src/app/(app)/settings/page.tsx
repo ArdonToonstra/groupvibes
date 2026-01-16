@@ -534,7 +534,7 @@ function SettingsContent() {
 
                             <div className="grid grid-cols-2 gap-4">
                                 <Button
-                                    onClick={() => router.push('/onboarding?step=3&action=create')}
+                                    onClick={() => router.push('/onboarding?step=4&action=create')}
                                     variant="outline"
                                     className="h-32 flex flex-col gap-3 rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700 hover:border-primary hover:bg-blue-50 dark:hover:bg-blue-900/10 hover:text-primary transition-all shadow-none"
                                 >
@@ -545,7 +545,7 @@ function SettingsContent() {
                                 </Button>
 
                                 <Button
-                                    onClick={() => router.push('/onboarding?step=3&action=join')}
+                                    onClick={() => router.push('/onboarding?step=4&action=join')}
                                     variant="outline"
                                     className="h-32 flex flex-col gap-3 rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700 hover:border-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/10 hover:text-emerald-600 transition-all shadow-none"
                                 >

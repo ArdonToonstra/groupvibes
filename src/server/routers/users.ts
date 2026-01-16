@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { eq, and, gt, desc, count } from 'drizzle-orm'
 import { createTRPCRouter, protectedProcedure } from '../trpc'
-import { users, groups, checkIns, pushSubscriptions } from '@/db/schema'
+import { users, groups, checkIns, pushSubscriptions, sessions, accounts } from '@/db/schema'
 import { TRPCError } from '@trpc/server'
 
 export const usersRouter = createTRPCRouter({
@@ -71,14 +71,12 @@ export const usersRouter = createTRPCRouter({
       await ctx.db.delete(groups).where(eq(groups.id, group.id))
     }
     
+    // Clean up Better Auth sessions and accounts before deleting user
+    await ctx.db.delete(sessions).where(eq(sessions.userId, userId))
+    await ctx.db.delete(accounts).where(eq(accounts.userId, userId))
+    
     // Delete the user (Better Auth user table is unified)
     await ctx.db.delete(users).where(eq(users.id, userId))
-    
-    // Also clean up Better Auth sessions and accounts
-    // Note: These are in the same database
-    const { sql } = await import('drizzle-orm')
-    await ctx.db.execute(sql`DELETE FROM "session" WHERE "userId" = ${userId}`)
-    await ctx.db.execute(sql`DELETE FROM "account" WHERE "userId" = ${userId}`)
     
     return { success: true, message: 'Account deleted successfully' }
   }),
