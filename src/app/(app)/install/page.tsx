@@ -9,7 +9,7 @@ export default function InstallPage() {
     const router = useRouter()
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20">
-            <PageHeader title="Install App" showBackButton maxWidth="2xl" />
+            <PageHeader title="Install App" showBackButton onBack={() => router.push('/')} maxWidth="2xl" />
 
             <div className="container max-w-2xl mx-auto p-4 space-y-6">
                 <div className="space-y-2 text-center">

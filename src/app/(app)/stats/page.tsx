@@ -60,6 +60,7 @@ export default function GroupStatsPage() {
             <PageHeader
                 title="Group"
                 showBackButton
+                onBack={() => router.push('/dashboard')}
                 maxWidth="2xl"
                 rightContent={tabToggle}
             />

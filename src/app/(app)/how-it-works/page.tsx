@@ -22,7 +22,7 @@ export default function HowItWorksPage() {
             How StateLink Works
           </h1>
           <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-            Stay connected with your group's wellbeing through simple daily check-ins and insightful analytics.
+            Stay connected with your group&apos;s wellbeing through simple daily check-ins and insightful analytics.
           </p>
         </div>
 
@@ -91,7 +91,7 @@ export default function HowItWorksPage() {
               Smart Reminders
             </h2>
             <p className="text-gray-600 dark:text-gray-400 mb-4 leading-relaxed">
-              Group admins can configure custom push notifications to remind members to check in. Set your own schedule that works for your group's rhythm.
+              Group admins can configure custom push notifications to remind members to check in. Set your own schedule that works for your group&apos;s rhythm.
             </p>
             <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
               <li className="flex items-start gap-2">

@@ -60,6 +60,7 @@ export default function MyStatsPage() {
             <PageHeader
                 title="My Stats"
                 showBackButton
+                onBack={() => router.push('/dashboard')}
                 maxWidth="2xl"
                 rightContent={tabToggle}
             />
