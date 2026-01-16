@@ -31,14 +31,28 @@ export function StatsView({ checkins }: StatsViewProps) {
 
     // Prepare data for chart
     // 1. Sort by date just in case
-    // 2. Map to format needed by Recharts
+    // 2. Aggregate by day (mean score per day)
     const sortedCheckins = [...checkins].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
 
-    const chartData = sortedCheckins.map(c => ({
-        date: new Date(c.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
-        fullDate: new Date(c.createdAt).toLocaleString(),
-        vibe: c.vibeScore
-    }))
+    // Group check-ins by day and calculate mean
+    const dailyData = sortedCheckins.reduce((acc, c) => {
+        const dateKey = new Date(c.createdAt).toISOString().split('T')[0] // YYYY-MM-DD
+        if (!acc[dateKey]) {
+            acc[dateKey] = { total: 0, count: 0, date: new Date(c.createdAt) }
+        }
+        acc[dateKey].total += c.vibeScore || 0
+        acc[dateKey].count += 1
+        return acc
+    }, {} as Record<string, { total: number; count: number; date: Date }>)
+
+    const chartData = Object.entries(dailyData)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([dateKey, data]) => ({
+            date: data.date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+            fullDate: dateKey,
+            vibe: Math.round((data.total / data.count) * 10) / 10, // Mean score rounded to 1 decimal
+            count: data.count
+        }))
 
     return (
         <div className="space-y-4">
@@ -82,6 +96,10 @@ export function StatsView({ checkins }: StatsViewProps) {
                                 labelStyle={{ color: '#374151', fontSize: '12px', marginBottom: '4px' }}
                                 itemStyle={{ color: '#2563EB', fontWeight: 600, fontSize: '14px' }}
                                 cursor={{ stroke: '#9CA3AF', strokeWidth: 1, strokeDasharray: '4 4' }}
+                                formatter={(value: number, name: string, props: any) => [
+                                    `${value} (${props.payload.count} check-in${props.payload.count > 1 ? 's' : ''})`,
+                                    'Avg Vibe'
+                                ]}
                             />
                             <Line
                                 type="monotone"
