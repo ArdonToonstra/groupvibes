@@ -15,6 +15,20 @@ export const auth = betterAuth({
       verification: schema.verifications,
     },
   }),
+
+  // Social OAuth providers
+  socialProviders: {
+    google: {
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      // Only map name from Google, skip profile picture
+      mapProfileToUser: (profile) => ({
+        name: profile.name,
+        displayName: profile.name,
+        // Explicitly don't include image/picture
+      }),
+    },
+  },
   
   // Use email/password authentication
   emailAndPassword: {
