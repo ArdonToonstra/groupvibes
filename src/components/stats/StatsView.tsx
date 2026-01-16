@@ -97,10 +97,10 @@ export function StatsView({ checkins }: StatsViewProps) {
                                 labelStyle={{ color: '#374151', fontSize: '12px', marginBottom: '4px' }}
                                 itemStyle={{ color: '#2563EB', fontWeight: 600, fontSize: '14px' }}
                                 cursor={{ stroke: '#9CA3AF', strokeWidth: 1, strokeDasharray: '4 4' }}
-                                formatter={(value: number, name: string, props: any) => [
-                                    `${value} (${props.payload.count} check-in${props.payload.count > 1 ? 's' : ''})`,
-                                    'Avg Vibe'
-                                ]}
+                                formatter={(value, _name, props) => {
+                                    const count = (props.payload as { count: number }).count
+                                    return [`${value} (${count} check-in${count > 1 ? 's' : ''})`, 'Avg Vibe']
+                                }}
                             />
                             <Line
                                 type="monotone"
