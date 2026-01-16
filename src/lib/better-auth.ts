@@ -107,9 +107,13 @@ export const auth = betterAuth({
     }),
   ],
 
-  // Trust host for Next.js
+  // Trust host for Next.js - include all possible origins
   trustedOrigins: [
     process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+    'https://statelink.nl',
+    'https://www.statelink.nl',
+    'https://statelink.vercel.app',
+    'http://localhost:3000',
   ],
 })
 
