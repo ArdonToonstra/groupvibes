@@ -18,11 +18,19 @@ export const pushRouter = createTRPCRouter({
       })
       
       if (existing) {
-        return { success: true, message: 'Already subscribed' }
+        // Update existing subscription with current session ID
+        await ctx.db.update(pushSubscriptions)
+          .set({
+            sessionId: ctx.session.session.id,
+            updatedAt: new Date(),
+          })
+          .where(eq(pushSubscriptions.endpoint, input.endpoint))
+        return { success: true, message: 'Subscription updated' }
       }
       
       await ctx.db.insert(pushSubscriptions).values({
         userId: ctx.user.id,
+        sessionId: ctx.session.session.id, // Link to current session for auto-cleanup on logout
         endpoint: input.endpoint,
         p256dh: input.p256dh,
         auth: input.auth,

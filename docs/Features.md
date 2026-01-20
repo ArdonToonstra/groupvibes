@@ -1,6 +1,6 @@
 # STATELINK – TO DO's
 
-
+* project owner - set average time frame for group score
 * bot prevention?
 * security analysis
 

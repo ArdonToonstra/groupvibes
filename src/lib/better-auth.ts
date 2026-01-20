@@ -93,12 +93,16 @@ export const auth = betterAuth({
     },
   },
 
-  // JWT mode (no database sessions) as requested
+  // Session configuration with extended expiry for PWA
   session: {
-    // Use cookie-based JWT sessions
+    // 30 days session expiry
+    expiresIn: 60 * 60 * 24 * 30, // 30 days in seconds
+    // Refresh session if older than 1 day
+    updateAge: 60 * 60 * 24, // 1 day in seconds
+    // Use cookie-based JWT sessions with extended cache for PWA offline support
     cookieCache: {
       enabled: true,
-      maxAge: 60 * 60 * 2, // 2 hours
+      maxAge: 60 * 60 * 24 * 30, // 30 days to match session expiry
     },
   },
 
