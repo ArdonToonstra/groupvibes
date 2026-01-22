@@ -43,10 +43,10 @@ import { trpc } from '@/lib/trpc'
 
 const VIBE_OPTIONS = [
   { value: 10, label: 'wonderful', color: '#10B981', icon: Laugh },
-  { value: 8, label: 'good', color: '#84CC16', icon: Smile },
-  { value: 6, label: 'meh', color: '#3B82F6', icon: Meh },
-  { value: 4, label: 'bad', color: '#F59E0B', icon: Frown },
-  { value: 2, label: 'awful', color: '#EF4444', icon: Angry },
+  { value: 7, label: 'good', color: '#84CC16', icon: Smile },
+  { value: 5, label: 'meh', color: '#3B82F6', icon: Meh },
+  { value: 3, label: 'bad', color: '#F59E0B', icon: Frown },
+  { value: 1, label: 'awful', color: '#EF4444', icon: Angry },
 ]
 
 const ALL_ACTIVITIES = [
