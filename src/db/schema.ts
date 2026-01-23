@@ -16,13 +16,14 @@ export const users = pgTable('user', {
   image: text('image'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
-  
+
   // App-specific fields
   displayName: text('display_name'),
   groupId: text('group_id').references(() => groups.id), // DEPRECATED: kept for migration, use userGroups
   activeGroupId: text('active_group_id').references(() => groups.id), // Currently focused group
   timezone: text('timezone').default('UTC'), // User's timezone for quiet hours calculation
   customActivityIds: text('custom_activity_ids').array(), // User's selected activity tag IDs
+  shareCheckInsGlobally: boolean('share_check_ins_globally').default(false), // When true, check-ins visible to all groups
 })
 
 export const sessions = pgTable('session', {

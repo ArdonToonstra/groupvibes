@@ -97,7 +97,7 @@ export default function CheckInPage() {
   const preferencesQuery = trpc.users.getPreferences.useQuery(undefined, {
     retry: false,
   })
-  
+
   const updateProfileMutation = trpc.users.updateProfile.useMutation()
 
   // Initialize activity IDs from user preferences
@@ -317,6 +317,19 @@ export default function CheckInPage() {
               <h1 className="text-2xl font-medium text-gray-700 dark:text-gray-200 uppercase">
                 What have you<br />been up to?
               </h1>
+              <div className="flex items-center justify-center gap-1.5 text-xs text-gray-400 font-medium pt-1">
+                {preferencesQuery.data?.shareCheckInsGlobally ? (
+                  <>
+                    <Users className="w-3 h-3" />
+                    Visible to all your groups
+                  </>
+                ) : (
+                  <>
+                    <Users className="w-3 h-3" />
+                    Visible to {preferencesQuery.data?.activeGroupName || 'your group'}
+                  </>
+                )}
+              </div>
             </div>
 
             <div className="grid grid-cols-5 gap-y-6 gap-x-2">

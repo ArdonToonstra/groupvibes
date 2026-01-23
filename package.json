@@ -13,7 +13,8 @@
     "start": "cross-env NODE_OPTIONS=--no-deprecation next start",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "db:sync": "powershell -ExecutionPolicy Bypass -File ./scripts/db-sync.ps1"
   },
   "dependencies": {
     "@ducanh2912/next-pwa": "^10.2.9",

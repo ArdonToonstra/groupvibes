@@ -18,14 +18,14 @@ export const usersRouter = createTRPCRouter({
         },
       },
     })
-    
+
     if (!user) {
       throw new TRPCError({
         code: 'NOT_FOUND',
         message: 'User not found',
       })
     }
-    
+
     return {
       ...user,
       groups: user.userGroups.map(ug => ({
@@ -42,12 +42,13 @@ export const usersRouter = createTRPCRouter({
     .input(z.object({
       displayName: z.string().min(1).optional(),
       customActivityIds: z.array(z.string()).optional(),
+      shareCheckInsGlobally: z.boolean().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       await ctx.db.update(users)
         .set(input)
         .where(eq(users.id, ctx.user.id))
-      
+
       return { success: true }
     }),
 
@@ -57,42 +58,48 @@ export const usersRouter = createTRPCRouter({
       where: eq(users.id, ctx.user.id),
       columns: {
         customActivityIds: true,
+        shareCheckInsGlobally: true,
+      },
+      with: {
+        activeGroup: true,
       },
     })
-    
+
     return {
       customActivityIds: user?.customActivityIds ?? null,
+      shareCheckInsGlobally: user?.shareCheckInsGlobally ?? false,
+      activeGroupName: user?.activeGroup?.name ?? null,
     }
   }),
 
   // Delete account
   deleteAccount: protectedProcedure.mutation(async ({ ctx }) => {
     const userId = ctx.user.id
-    
+
     // Delete all check-ins by this user
     await ctx.db.delete(checkIns).where(eq(checkIns.userId, userId))
-    
+
     // Delete all push subscriptions
     await ctx.db.delete(pushSubscriptions).where(eq(pushSubscriptions.userId, userId))
-    
+
     // Find groups owned by this user
     const ownedGroups = await ctx.db.query.groups.findMany({
       where: eq(groups.ownerId, userId),
     })
-    
+
     for (const group of ownedGroups) {
       // Get all members of this group
       const allMembers = await ctx.db.query.userGroups.findMany({
         where: eq(userGroups.groupId, group.id),
       })
       const otherMemberRecord = allMembers.find(m => m.userId !== userId)
-      
+
       if (otherMemberRecord) {
         // Transfer ownership
         await ctx.db.update(groups)
           .set({ ownerId: otherMemberRecord.userId })
           .where(eq(groups.id, group.id))
-        
+
         await ctx.db.update(userGroups)
           .set({ role: 'owner' })
           .where(and(
@@ -105,17 +112,17 @@ export const usersRouter = createTRPCRouter({
         await ctx.db.delete(groups).where(eq(groups.id, group.id))
       }
     }
-    
+
     // Remove user from all groups
     await ctx.db.delete(userGroups).where(eq(userGroups.userId, userId))
-    
+
     // Clean up Better Auth sessions and accounts before deleting user
     await ctx.db.delete(sessions).where(eq(sessions.userId, userId))
     await ctx.db.delete(accounts).where(eq(accounts.userId, userId))
-    
+
     // Delete the user (Better Auth user table is unified)
     await ctx.db.delete(users).where(eq(users.id, userId))
-    
+
     return { success: true, message: 'Account deleted successfully' }
   }),
 })

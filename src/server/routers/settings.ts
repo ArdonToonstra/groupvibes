@@ -18,14 +18,14 @@ export const settingsRouter = createTRPCRouter({
         },
       },
     })
-    
+
     if (!user) {
       throw new TRPCError({
         code: 'NOT_FOUND',
         message: 'User not found',
       })
     }
-    
+
     // Build list of all user's groups
     const allGroups = await Promise.all(user.userGroups.map(async (ug) => {
       // Get members for each group via junction table
@@ -35,7 +35,7 @@ export const settingsRouter = createTRPCRouter({
           user: true,
         },
       })
-      
+
       return {
         id: ug.group.id,
         name: ug.group.name,
@@ -55,22 +55,23 @@ export const settingsRouter = createTRPCRouter({
         })),
       }
     }))
-    
+
     // Get the active group details (for backwards compatibility)
     const activeGroup = allGroups.find(g => g.id === user.activeGroupId) ?? null
-    
+
     // Get user's check-ins
     const userCheckIns = await ctx.db.query.checkIns.findMany({
       where: eq(checkIns.userId, ctx.user.id),
       limit: 1000,
     })
-    
+
     return {
       user: {
         id: user.id,
         displayName: user.displayName,
         email: user.email,
         activeGroupId: user.activeGroupId,
+        shareCheckInsGlobally: user.shareCheckInsGlobally,
       },
       group: activeGroup, // For backwards compatibility
       groups: allGroups, // All groups user is member of

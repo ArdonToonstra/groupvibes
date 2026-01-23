@@ -144,10 +144,10 @@ function TestPushButton() {
                 onClick={handleSendTest}
                 disabled={status === 'sending'}
                 className={`w-full h-12 rounded-xl justify-center gap-2 transition-all ${status === 'success'
-                        ? 'bg-green-50 border-green-200 text-green-600 hover:bg-green-100'
-                        : status === 'error'
-                            ? 'bg-red-50 border-red-200 text-red-600 hover:bg-red-100'
-                            : 'bg-gray-50 border-0 hover:bg-gray-100 dark:bg-gray-900 dark:hover:bg-gray-700'
+                    ? 'bg-green-50 border-green-200 text-green-600 hover:bg-green-100'
+                    : status === 'error'
+                        ? 'bg-red-50 border-red-200 text-red-600 hover:bg-red-100'
+                        : 'bg-gray-50 border-0 hover:bg-gray-100 dark:bg-gray-900 dark:hover:bg-gray-700'
                     }`}
             >
                 {status === 'sending' ? (
@@ -193,6 +193,7 @@ function SettingsContent() {
 
     // Form State
     const [displayName, setDisplayName] = useState('')
+    const [shareGlobally, setShareGlobally] = useState(false)
     const [groupName, setGroupName] = useState('')
 
     // Push notification state
@@ -262,6 +263,7 @@ function SettingsContent() {
             }
 
             setDisplayName(settingsQuery.data.user.displayName || '')
+            setShareGlobally(settingsQuery.data.user.shareCheckInsGlobally ?? false)
             setLoading(false)
         }
     }, [settingsQuery.data])
@@ -331,6 +333,18 @@ function SettingsContent() {
         } catch (e) {
             console.error(e)
             setSaveStatus(prev => prev.field === field ? { ...prev, status: 'idle' } : prev)
+        }
+    }
+
+    const handleShareGloballyToggle = async () => {
+        const newValue = !shareGlobally
+        setShareGlobally(newValue) // Optimistic update
+        try {
+            await updateProfileMutation.mutateAsync({ shareCheckInsGlobally: newValue })
+        } catch (e) {
+            console.error(e)
+            setShareGlobally(!newValue) // Revert on error
+            alert("Failed to update setting")
         }
     }
 
@@ -576,6 +590,38 @@ function SettingsContent() {
                             </div>
 
 
+                        </Card>
+
+                        <Card className="p-6 border-none shadow-sm rounded-2xl bg-white dark:bg-gray-800 space-y-4">
+                            <h2 className="font-semibold text-gray-900 dark:text-white">Privacy & Sharing</h2>
+                            <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-xl">
+                                <div className="flex items-center gap-3">
+                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${shareGlobally ? 'bg-blue-100 text-blue-600' : 'bg-gray-200 text-gray-500'}`}>
+                                        <Users className="w-5 h-5" />
+                                    </div>
+                                    <div>
+                                        <div className="font-semibold text-gray-700 dark:text-gray-200">Share with All Groups</div>
+                                        <div className="text-xs text-gray-500">
+                                            {shareGlobally
+                                                ? "Check-ins are visible to all your groups"
+                                                : "Check-ins are only for your active group"
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="flex items-center">
+                                    <button
+                                        onClick={handleShareGloballyToggle}
+                                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${shareGlobally ? 'bg-primary' : 'bg-gray-300'
+                                            }`}
+                                    >
+                                        <span
+                                            className={`${shareGlobally ? 'translate-x-6' : 'translate-x-1'
+                                                } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
+                                        />
+                                    </button>
+                                </div>
+                            </div>
                         </Card>
 
                         <Card className="p-6 border-none shadow-sm rounded-2xl bg-white dark:bg-gray-800 space-y-4">

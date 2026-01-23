@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { eq, desc, and, gt, isNull, sql, inArray } from 'drizzle-orm'
+import { eq, desc, and, gt, isNull, or, sql, inArray } from 'drizzle-orm'
 import { createTRPCRouter, protectedProcedure } from '../trpc'
 import { checkIns, userGroups, users } from '@/db/schema'
 
@@ -15,19 +15,19 @@ export const checkInsRouter = createTRPCRouter({
     }).optional())
     .query(async ({ ctx, input }) => {
       const scope = input?.scope ?? 'user'
-      
+
       if (scope === 'group') {
         // Get the group to query - either specified or active group
         const user = await ctx.db.query.users.findFirst({
           where: eq(users.id, ctx.user.id),
         })
-        
+
         const targetGroupId = input?.groupId ?? user?.activeGroupId
-        
+
         if (!targetGroupId) {
           return { docs: [], totalDocs: 0 }
         }
-        
+
         // Verify user is a member of this group
         const membership = await ctx.db.query.userGroups.findFirst({
           where: and(
@@ -35,34 +35,43 @@ export const checkInsRouter = createTRPCRouter({
             eq(userGroups.groupId, targetGroupId)
           ),
         })
-        
+
         if (!membership) {
           return { docs: [], totalDocs: 0 }
         }
-        
+
         // Get all members of the group
         const groupMemberships = await ctx.db.query.userGroups.findMany({
           where: eq(userGroups.groupId, targetGroupId),
         })
-        
+
         const memberIds = groupMemberships.map(m => m.userId)
-        
+
         if (memberIds.length === 0) {
           return { docs: [], totalDocs: 0 }
         }
-        
-        // Get check-ins from all group members (user membership lookup approach)
+
+        // Get check-ins from all group members
+        // Include check-ins that are either:
+        // 1. Specifically for this group (groupId matches)
+        // 2. Shared globally (groupId is null)
         const results = await ctx.db.query.checkIns.findMany({
-          where: inArray(checkIns.userId, memberIds),
+          where: and(
+            inArray(checkIns.userId, memberIds),
+            or(
+              eq(checkIns.groupId, targetGroupId),
+              isNull(checkIns.groupId)
+            )
+          ),
           orderBy: desc(checkIns.createdAt),
           with: {
             user: true,
           },
         })
-        
+
         return { docs: results, totalDocs: results.length }
       }
-      
+
       // Default: user's own check-ins
       const results = await ctx.db.query.checkIns.findMany({
         where: eq(checkIns.userId, ctx.user.id),
@@ -71,11 +80,11 @@ export const checkInsRouter = createTRPCRouter({
           user: true,
         },
       })
-      
+
       return { docs: results, totalDocs: results.length }
     }),
 
-  // Create a check-in (no longer tied to a specific group)
+  // Create a check-in (associated with active group unless sharing globally)
   create: protectedProcedure
     .input(z.object({
       vibeScore: z.number().min(1).max(10),
@@ -83,16 +92,23 @@ export const checkInsRouter = createTRPCRouter({
       customNote: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
-      // Check-ins are user-level, not group-level
-      // They will be visible in all groups through user membership lookup
+      // Get user's sharing preference and active group
+      const user = await ctx.db.query.users.findFirst({
+        where: eq(users.id, ctx.user.id),
+      })
+
+      // If shareCheckInsGlobally is true, groupId = null (visible to all groups)
+      // Otherwise, associate with active group (per-group check-in)
+      const groupId = user?.shareCheckInsGlobally ? null : (user?.activeGroupId ?? null)
+
       const [newCheckIn] = await ctx.db.insert(checkIns).values({
         userId: ctx.user.id,
-        groupId: null, // No longer associating with specific group
+        groupId,
         vibeScore: input.vibeScore,
         tags: input.tags ?? [],
         customNote: input.customNote,
       }).returning()
-      
+
       return newCheckIn
     }),
 
@@ -103,13 +119,13 @@ export const checkInsRouter = createTRPCRouter({
       const checkIn = await ctx.db.query.checkIns.findFirst({
         where: eq(checkIns.id, input.id),
       })
-      
+
       if (!checkIn || checkIn.userId !== ctx.user.id) {
         throw new Error('Check-in not found or unauthorized')
       }
-      
+
       await ctx.db.delete(checkIns).where(eq(checkIns.id, input.id))
-      
+
       return { success: true }
     }),
 
@@ -119,7 +135,7 @@ export const checkInsRouter = createTRPCRouter({
       where: eq(checkIns.userId, ctx.user.id),
       orderBy: desc(checkIns.createdAt),
     })
-    
+
     return latest ?? null
   }),
 
@@ -135,22 +151,22 @@ export const checkInsRouter = createTRPCRouter({
       const checkIn = await ctx.db.query.checkIns.findFirst({
         where: eq(checkIns.id, input.id),
       })
-      
+
       if (!checkIn) {
         throw new Error('Check-in not found')
       }
-      
+
       if (checkIn.userId !== ctx.user.id) {
         throw new Error('Unauthorized: You can only edit your own check-ins')
       }
-      
+
       // Check if within 24-hour edit window
       const createdAt = new Date(checkIn.createdAt).getTime()
       const now = Date.now()
       if (now - createdAt > EDIT_WINDOW_MS) {
         throw new Error('Check-ins can only be edited within 24 hours of creation')
       }
-      
+
       const [updatedCheckIn] = await ctx.db.update(checkIns)
         .set({
           vibeScore: input.vibeScore,
@@ -160,7 +176,7 @@ export const checkInsRouter = createTRPCRouter({
         })
         .where(eq(checkIns.id, input.id))
         .returning()
-      
+
       return updatedCheckIn
     }),
 })

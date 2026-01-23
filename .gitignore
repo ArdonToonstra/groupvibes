@@ -45,3 +45,6 @@ src/app/(payload)/admin/importMap.js
 # playwright
 /playwright-report/
 /test-results/
+
+# backups
+backups/
