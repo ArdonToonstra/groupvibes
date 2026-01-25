@@ -19,7 +19,7 @@ export default function HowItWorksPage() {
       <main className="flex-1 p-4 md:p-8 max-w-5xl mx-auto w-full">
         <div className="mb-12 text-center">
           <h1 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-4">
-            How StateLink Works
+            How GroupVibes Works
           </h1>
           <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
             Stay connected with your group&apos;s wellbeing through simple daily check-ins and insightful analytics.
@@ -157,7 +157,7 @@ export default function HowItWorksPage() {
       {/* Footer */}
       <footer className="p-6 text-center text-sm text-gray-400 dark:text-gray-600">
         <Link href="/" className="hover:text-primary transition-colors">
-          © {new Date().getFullYear()} StateLink
+          © {new Date().getFullYear()} GroupVibes
         </Link>
       </footer>
     </div>

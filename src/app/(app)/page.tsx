@@ -42,7 +42,7 @@ export default function Home() {
             <div className="bg-primary/10 p-2 rounded-lg">
               <Zap className="w-5 h-5 text-primary" />
             </div>
-            <span className="font-bold text-xl text-gray-900 dark:text-white tracking-tight">StateLink</span>
+            <span className="font-bold text-xl text-gray-900 dark:text-white tracking-tight">GroupVibes</span>
           </Link>
           <nav className="flex items-center gap-1 md:gap-2">
             <Link href="/how-it-works" className="font-medium text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition-colors px-2 md:px-4 py-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-sm md:text-base">
@@ -92,7 +92,7 @@ export default function Home() {
           <span className="mx-2">·</span>
           <Link href="/privacy" className="hover:text-gray-600 dark:hover:text-gray-400 transition-colors">Privacy</Link>
         </div>
-        <div>© {new Date().getFullYear()} StateLink</div>
+        <div>© {new Date().getFullYear()} GroupVibes</div>
       </footer>
     </div>
   )

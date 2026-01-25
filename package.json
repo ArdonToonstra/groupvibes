@@ -1,7 +1,7 @@
 {
-  "name": "statelink",
+  "name": "groupvibes",
   "version": "0.1.0",
-  "description": "Statelink - A group vibe check app",
+  "description": "GroupVibes - A group vibe check app",
   "license": "MIT",
   "type": "module",
   "scripts": {
