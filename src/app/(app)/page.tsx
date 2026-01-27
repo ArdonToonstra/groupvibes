@@ -96,6 +96,8 @@ export default function Home() {
           <Link href="/terms" className="hover:text-gray-600 dark:hover:text-gray-400 transition-colors">Terms</Link>
           <span className="mx-2">·</span>
           <Link href="/privacy" className="hover:text-gray-600 dark:hover:text-gray-400 transition-colors">Privacy</Link>
+          <span className="mx-2">·</span>
+          <a href="https://github.com/ArdonToonstra/groupvibes/issues" target="_blank" rel="noopener noreferrer" className="hover:text-gray-600 dark:hover:text-gray-400 transition-colors">Feedback</a>
         </div>
         <div>© {new Date().getFullYear()} GroupVibes</div>
       </footer>
