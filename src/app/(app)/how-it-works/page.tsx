@@ -37,7 +37,7 @@ export default function HowItWorksPage() {
               Daily Check-ins
             </h2>
             <p className="text-gray-600 dark:text-gray-400 mb-4 leading-relaxed">
-              Share your current mood and state with your group. Choose from 5 vibe levels—from wonderful to awful—and add optional tags to give context about your day.
+              Share your current vibe with your group. Choose from 5 vibe levels—from wonderful to awful—and add optional tags to give context about your day.
             </p>
             <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
               <li className="flex items-start gap-2">
@@ -141,7 +141,7 @@ export default function HowItWorksPage() {
         <div className="bg-gradient-to-br from-primary/10 to-blue-500/10 rounded-2xl p-8 text-center">
           <Users className="w-12 h-12 text-primary mx-auto mb-4" />
           <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
-            Ready to Link States?
+            Want to know the vibe?
           </h2>
           <p className="text-lg text-gray-600 dark:text-gray-400 mb-6 max-w-2xl mx-auto">
             Create your account, join or create a group, and start checking in with the people who matter most.

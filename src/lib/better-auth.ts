@@ -130,7 +130,7 @@ export const auth = betterAuth({
     process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
     'https://groupvibes.nl',
     'https://www.groupvibes.nl',
-    'https://statelink.vercel.app',
+    'https://groupvibes.vercel.app',
     'http://localhost:3000',
   ],
 })
