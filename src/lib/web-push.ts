@@ -1,6 +1,6 @@
 import webpush from 'web-push'
 import { db } from '@/db'
-import { pushSubscriptions, users } from '@/db/schema'
+import { pushSubscriptions, users, userGroups } from '@/db/schema'
 import { eq } from 'drizzle-orm'
 
 // Configure VAPID keys lazily to avoid build-time errors
@@ -108,11 +108,15 @@ export async function sendToGroup(
   quietHoursStart: number | null,
   quietHoursEnd: number | null
 ): Promise<{ sent: number; failed: number; skippedQuietHours: number }> {
-  // Get all users in the group with their subscriptions and timezone
-  const groupUsers = await db.query.users.findMany({
-    where: eq(users.groupId, groupId),
+  // Get all users in the group via the userGroups junction table
+  const groupMemberships = await db.query.userGroups.findMany({
+    where: eq(userGroups.groupId, groupId),
     with: {
-      pushSubscriptions: true,
+      user: {
+        with: {
+          pushSubscriptions: true,
+        },
+      },
     },
   })
   
@@ -120,7 +124,8 @@ export async function sendToGroup(
   let failed = 0
   let skippedQuietHours = 0
   
-  for (const user of groupUsers) {
+  for (const membership of groupMemberships) {
+    const user = membership.user
     const userTimezone = user.timezone || 'UTC'
     
     // Check if user is in quiet hours
