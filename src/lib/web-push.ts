@@ -120,6 +120,8 @@ export async function sendToGroup(
     },
   })
   
+  console.log(`[Push] Group ${groupId}: Found ${groupMemberships.length} members`)
+  
   let sent = 0
   let failed = 0
   let skippedQuietHours = 0
@@ -128,23 +130,30 @@ export async function sendToGroup(
     const user = membership.user
     const userTimezone = user.timezone || 'UTC'
     
+    console.log(`[Push] User ${user.email}: ${user.pushSubscriptions.length} subscriptions, timezone=${userTimezone}`)
+    
     // Check if user is in quiet hours
     if (isInQuietHours(quietHoursStart, quietHoursEnd, userTimezone)) {
+      console.log(`[Push] User ${user.email}: Skipped (in quiet hours)`)
       skippedQuietHours++
       continue
     }
     
     // Send to all subscriptions for this user
     for (const subscription of user.pushSubscriptions) {
+      console.log(`[Push] Sending to ${user.email} endpoint: ${subscription.endpoint.substring(0, 50)}...`)
       const result = await sendNotification(subscription, payload)
       if (result.success) {
+        console.log(`[Push] Sent successfully to ${user.email}`)
         sent++
       } else {
+        console.log(`[Push] Failed to send to ${user.email}: ${result.error}`)
         failed++
       }
     }
   }
   
+  console.log(`[Push] Group ${groupId} complete: sent=${sent}, failed=${failed}, skipped=${skippedQuietHours}`)
   return { sent, failed, skippedQuietHours }
 }
 

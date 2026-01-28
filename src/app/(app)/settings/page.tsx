@@ -186,6 +186,8 @@ function SettingsContent() {
     const deleteAccountMutation = trpc.users.deleteAccount.useMutation()
     const pushSubscribeMutation = trpc.push.subscribe.useMutation()
     const pushUnsubscribeMutation = trpc.push.unsubscribe.useMutation()
+    const pushSendTestMutation = trpc.push.sendTest.useMutation()
+    const [testingSending, setTestingSending] = useState(false)
 
     // Redirect if unauthorized
     useEffect(() => {
@@ -575,6 +577,44 @@ function SettingsContent() {
                                     )}
                                 </Button>
                             </div>
+                            {pushEnabled && (
+                                <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-xl">
+                                    <div className="flex items-center gap-3">
+                                        <Zap className="w-5 h-5 text-amber-500" />
+                                        <div>
+                                            <div className="font-semibold text-gray-700 dark:text-gray-200">Test Notification</div>
+                                            <div className="text-xs text-gray-500">Send a test push to verify it works</div>
+                                        </div>
+                                    </div>
+                                    <Button 
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={async () => {
+                                            setTestingSending(true)
+                                            try {
+                                                const result = await pushSendTestMutation.mutateAsync()
+                                                if (result.success) {
+                                                    alert(`Test notification sent! (${result.sent} delivered)`)
+                                                } else {
+                                                    alert(result.error || 'Failed to send test notification')
+                                                }
+                                            } catch (e) {
+                                                alert(e instanceof Error ? e.message : 'Failed to send test notification')
+                                            } finally {
+                                                setTestingSending(false)
+                                            }
+                                        }}
+                                        disabled={testingSending}
+                                        className="min-w-[80px]"
+                                    >
+                                        {testingSending ? (
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                        ) : (
+                                            'Send Test'
+                                        )}
+                                    </Button>
+                                </div>
+                            )}
                         </Card>
 
                         <Card className="p-6 border-none shadow-sm rounded-2xl bg-white dark:bg-gray-800 space-y-4">
