@@ -60,6 +60,7 @@ export const pushRouter = createTRPCRouter({
         body: 'Push notifications are working! You\'ll receive vibe check reminders here.',
         url: '/settings',
         icon: '/icons/icon-192x192.png',
+        badge: '/icons/icon-192x192.png',
       })
 
       if (result.success) {

@@ -96,6 +96,7 @@ export async function GET(request: NextRequest) {
         body: `How are you feeling right now?`,
         url: '/check-in',
         icon: '/icons/icon-192x192.png',
+        badge: '/icons/icon-192x192.png',
       }
       
       // Send notifications to group members (respecting quiet hours per user)
@@ -156,6 +157,7 @@ export async function GET(request: NextRequest) {
         body: 'How are you feeling right now?',
         url: '/check-in',
         icon: '/icons/icon-192x192.png',
+        badge: '/icons/icon-192x192.png',
       }
       
       for (const user of soloUsersToNotify) {

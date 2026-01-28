@@ -62,10 +62,18 @@ export async function sendNotification(
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     console.error('Push notification failed:', errorMessage)
     
-    // If subscription is invalid (410 Gone), we should clean it up
-    if (error instanceof webpush.WebPushError && error.statusCode === 410) {
-      await db.delete(pushSubscriptions)
-        .where(eq(pushSubscriptions.endpoint, subscription.endpoint))
+    // Only delete subscription on permanent failures (not temporary errors like 400/500)
+    if (error instanceof webpush.WebPushError) {
+      console.error(`[Push] WebPushError - statusCode: ${error.statusCode}, endpoint: ${subscription.endpoint.substring(0, 60)}...`)
+      
+      // Delete subscription only on permanent failures
+      // 410 Gone - subscription expired
+      // 404 Not Found - subscription doesn't exist
+      if (error.statusCode === 410 || error.statusCode === 404) {
+        console.log(`[Push] Deleting invalid subscription (${error.statusCode})`);
+        await db.delete(pushSubscriptions)
+          .where(eq(pushSubscriptions.endpoint, subscription.endpoint))
+      }
     }
     
     return { success: false, error: errorMessage }

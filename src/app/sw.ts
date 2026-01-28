@@ -107,15 +107,19 @@ self.addEventListener('push', function (event: PushEvent) {
         console.log('[SW] Push payload:', JSON.stringify(payload));
 
         // iOS-compatible notification options (minimal set)
-        // iOS doesn't support: actions, vibrate, badge image, requireInteraction, renotify
+        // iOS doesn't support: actions, vibrate, requireInteraction, renotify
+        // Use unique tag with timestamp to allow multiple notifications in iOS notification center
+        const timestamp = Date.now();
         const options: NotificationOptions = {
             body: payload.body || 'Time for a vibe check!',
             icon: payload.icon || '/icons/icon-192x192.png',
+            badge: payload.badge || '/icons/icon-192x192.png', // iOS notification center badge
             data: {
                 url: payload.url || '/check-in',
-                dateOfArrival: Date.now(),
+                dateOfArrival: timestamp,
             },
-            tag: 'groupvibes-notification', // Prevent duplicate notifications
+            tag: `vibe-check-${timestamp}`, // Unique tag to allow multiple notifications
+            silent: false, // Ensure notification is always shown (required for iOS)
         };
 
         console.log('[SW] Showing notification with options:', JSON.stringify(options));

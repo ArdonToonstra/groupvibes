@@ -234,19 +234,44 @@ function SettingsContent() {
         }
     }, [settingsQuery.data])
     
-    // Check push notification status on mount
+    // Check push notification status on mount and periodically
     useEffect(() => {
         const checkPushStatus = async () => {
             try {
                 const subscription = await getExistingSubscription()
-                setPushEnabled(!!subscription)
+                // Also verify with browser permission
+                const permission = 'Notification' in window ? Notification.permission : 'default'
+                
+                // Only mark as enabled if both subscription exists AND permission is granted
+                const isEnabled = !!subscription && permission === 'granted'
+                setPushEnabled(isEnabled)
+                
+                // Log state for debugging
+                console.log('[Settings] Push status check:', { 
+                    hasSubscription: !!subscription, 
+                    permission,
+                    enabled: isEnabled 
+                })
             } catch (e) {
                 console.error('Error checking push status:', e)
+                setPushEnabled(false)
             } finally {
                 setPushLoading(false)
             }
         }
+        
+        // Check on mount
         checkPushStatus()
+        
+        // Re-check every 30 seconds when page is visible
+        // This helps detect if iOS revoked the permission
+        const intervalId = setInterval(() => {
+            if (document.visibilityState === 'visible') {
+                checkPushStatus()
+            }
+        }, 30000)
+        
+        return () => clearInterval(intervalId)
     }, [])
     
     // Handle push notification toggle
