@@ -2,23 +2,20 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/db'
 import { groups, users, pushSubscriptions, userGroups } from '@/db/schema'
 import { eq } from 'drizzle-orm'
-import { auth } from '@/lib/auth'
-import { headers } from 'next/headers'
+import { getAuthenticatedUser } from '@/lib/auth'
 
 /**
  * Debug endpoint to check notification status
  * Only accessible to authenticated users (shows their own data)
  */
 export async function GET(request: NextRequest) {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  })
+  const user = await getAuthenticatedUser()
   
-  if (!session) {
+  if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
   
-  const userId = session.user.id
+  const userId = user.id
   const now = new Date()
   
   // Get user's push subscriptions
@@ -35,7 +32,7 @@ export async function GET(request: NextRequest) {
   })
   
   // Get user details
-  const user = await db.query.users.findFirst({
+  const userDetails = await db.query.users.findFirst({
     where: eq(users.id, userId),
   })
   
@@ -43,9 +40,9 @@ export async function GET(request: NextRequest) {
     currentTime: now.toISOString(),
     user: {
       id: userId,
-      email: session.user.email,
-      activeGroupId: user?.activeGroupId,
-      timezone: user?.timezone,
+      email: user.email,
+      activeGroupId: userDetails?.activeGroupId,
+      timezone: userDetails?.timezone,
     },
     pushSubscriptions: {
       count: userSubs.length,
