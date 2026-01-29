@@ -66,16 +66,35 @@ async function subscribeToPush(): Promise<PushSubscription | null> {
         console.log('[Push] Registered, state:', registration.active?.state, registration.installing?.state)
     }
 
+    // If there's a waiting worker, force it to activate by calling skipWaiting
+    // This fixes iOS Safari where the worker can get stuck in waiting state
+    if (registration.waiting) {
+        console.log('[Push] Found waiting worker, forcing activation...')
+        // Tell the waiting service worker to skip waiting and become active
+        registration.waiting.postMessage({ type: 'SKIP_WAITING' })
+        
+        // Wait for the new service worker to take control
+        await new Promise<void>((resolve) => {
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                console.log('[Push] Controller changed - new service worker activated')
+                resolve()
+            }, { once: true })
+            
+            // Also set a timeout in case controllerchange doesn't fire
+            setTimeout(resolve, 2000)
+        })
+    }
+
     const permission = await Notification.requestPermission()
     if (permission !== 'granted') {
         throw new Error('Notification permission denied')
     }
 
     // If there's an installing worker, wait for it to activate
-    if (registration.installing || registration.waiting) {
-        console.log('[Push] Waiting for service worker to activate...')
+    if (registration.installing) {
+        console.log('[Push] Waiting for installing worker to activate...')
         await new Promise<void>((resolve) => {
-            const worker = registration.installing || registration.waiting
+            const worker = registration.installing
             if (!worker) { resolve(); return }
             worker.addEventListener('statechange', () => {
                 console.log('[Push] Worker state changed to:', worker.state)
@@ -83,6 +102,9 @@ async function subscribeToPush(): Promise<PushSubscription | null> {
             })
             // Also resolve if already active
             if (worker.state === 'activated') resolve()
+            
+            // Timeout after 5 seconds
+            setTimeout(resolve, 5000)
         })
     }
 

@@ -79,6 +79,18 @@ const serwist = new Serwist({
 serwist.addEventListeners();
 
 // ============================================
+// Message handler for forcing skip waiting
+// ============================================
+self.addEventListener('message', function (event: ExtendableMessageEvent) {
+    console.log('[SW] Message received:', event.data);
+    
+    if (event.data && event.data.type === 'SKIP_WAITING') {
+        console.log('[SW] SKIP_WAITING message received, activating immediately');
+        self.skipWaiting();
+    }
+});
+
+// ============================================
 // Custom fetch event listener for auth session
 // ============================================
 self.addEventListener('fetch', function (event: FetchEvent) {
