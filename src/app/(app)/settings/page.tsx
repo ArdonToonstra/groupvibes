@@ -83,6 +83,13 @@ async function subscribeToPush(): Promise<PushSubscription | null> {
             // Also set a timeout in case controllerchange doesn't fire
             setTimeout(resolve, 2000)
         })
+        
+        // After activation, get the updated registration
+        const updatedReg = await navigator.serviceWorker.getRegistration()
+        if (updatedReg) {
+            registration = updatedReg
+            console.log('[Push] After SKIP_WAITING, active state:', registration.active?.state)
+        }
     }
 
     const permission = await Notification.requestPermission()
@@ -91,10 +98,10 @@ async function subscribeToPush(): Promise<PushSubscription | null> {
     }
 
     // If there's an installing worker, wait for it to activate
-    if (registration.installing) {
+    if (registration?.installing) {
         console.log('[Push] Waiting for installing worker to activate...')
         await new Promise<void>((resolve) => {
-            const worker = registration.installing
+            const worker = registration!.installing
             if (!worker) { resolve(); return }
             worker.addEventListener('statechange', () => {
                 console.log('[Push] Worker state changed to:', worker.state)
@@ -106,16 +113,35 @@ async function subscribeToPush(): Promise<PushSubscription | null> {
             // Timeout after 5 seconds
             setTimeout(resolve, 5000)
         })
+        
+        // After installation, get the updated registration
+        const updatedReg = await navigator.serviceWorker.getRegistration()
+        if (updatedReg) {
+            registration = updatedReg
+            console.log('[Push] After installation, active state:', registration.active?.state)
+        }
     }
 
-    // Add timeout to prevent hanging
-    console.log('[Push] Waiting for navigator.serviceWorker.ready...')
-    const readyRegistration = await Promise.race([
-        navigator.serviceWorker.ready,
-        new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error('Service worker ready timeout - SW may have failed to activate. Check browser console for errors.')), 10000)
-        )
-    ])
+    // Ensure we have a registration at this point
+    if (!registration) {
+        throw new Error('Service worker registration failed - no registration available')
+    }
+
+    // If we already have an active worker, use it directly instead of waiting for ready
+    let readyRegistration: ServiceWorkerRegistration
+    if (registration.active && registration.active.state === 'activated') {
+        console.log('[Push] Using already-active service worker')
+        readyRegistration = registration
+    } else {
+        // Add timeout to prevent hanging
+        console.log('[Push] Waiting for navigator.serviceWorker.ready...')
+        readyRegistration = await Promise.race([
+            navigator.serviceWorker.ready,
+            new Promise<never>((_, reject) =>
+                setTimeout(() => reject(new Error('Service worker ready timeout - SW may have failed to activate. Check browser console for errors.')), 10000)
+            )
+        ])
+    }
     console.log('[Push] Ready! Active worker:', readyRegistration.active?.state)
 
     const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
