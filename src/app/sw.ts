@@ -79,6 +79,23 @@ const serwist = new Serwist({
 serwist.addEventListeners();
 
 // ============================================
+// Message handler for forcing skip waiting
+// ============================================
+// Note: While Serwist has skipWaiting: true configured above, that only
+// applies during initial installation. This message handler is needed for
+// two additional scenarios:
+// 1. When a user refreshes while a new worker is waiting
+// 2. iOS Safari edge cases where explicit activation is required
+self.addEventListener('message', function (event: ExtendableMessageEvent) {
+    console.log('[SW] Message received:', event.data);
+    
+    if (event.data && event.data.type === 'SKIP_WAITING') {
+        console.log('[SW] SKIP_WAITING message received, activating immediately');
+        self.skipWaiting();
+    }
+});
+
+// ============================================
 // Custom fetch event listener for auth session
 // ============================================
 self.addEventListener('fetch', function (event: FetchEvent) {
