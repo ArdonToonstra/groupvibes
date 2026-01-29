@@ -150,34 +150,34 @@ self.addEventListener('fetch', function (event: FetchEvent) {
 // Push Notifications
 // ============================================
 self.addEventListener('push', function (event: PushEvent) {
-    console.log('[SW] Push event received');
-
     if (!event.data) {
-        console.log('[SW] Push event but no data');
         return;
     }
 
     try {
         const payload = event.data.json();
-        console.log('[SW] Push payload:', JSON.stringify(payload));
 
-        // iOS-compatible notification options (minimal set)
-        // iOS doesn't support: actions, vibrate, requireInteraction, renotify
-        // Use unique tag with timestamp to allow multiple notifications in iOS notification center
+        // Use absolute URLs for icons to ensure compatibility across platforms (Windows, Android, etc.)
+        const origin = self.location.origin;
+        const iconPath = payload.icon || '/icons/icon-192x192.png';
+        const iconUrl = iconPath.startsWith('http') ? iconPath : new URL(iconPath, origin).href;
+        const badgeUrl = iconUrl; // Use the same icon for badge
+
         const timestamp = Date.now();
-        const options: NotificationOptions = {
+        
+        const options: any = {
             body: payload.body || 'Time for a vibe check!',
-            icon: payload.icon || '/icons/icon-192x192.png',
-            badge: payload.badge || '/icons/icon-192x192.png', // iOS notification center badge
+            icon: iconUrl,
+            // badge: badgeUrl, // iOS notification center badge - Commented out as it can be flaky on some desktops if size mismatch
             data: {
                 url: payload.url || '/check-in',
                 dateOfArrival: timestamp,
             },
             tag: `vibe-check-${timestamp}`, // Unique tag to allow multiple notifications
-            silent: false, // Ensure notification is always shown (required for iOS)
+            silent: false, // Ensure notification is always shown
+            requireInteraction: true, // Keep notification on screen until user interacts
+            vibrate: [200, 100, 200], // Vibration pattern
         };
-
-        console.log('[SW] Showing notification with options:', JSON.stringify(options));
 
         // Best practice (per push.foo): combine client messaging + showNotification
         // in a single Promise.all inside one event.waitUntil to keep SW alive.
@@ -191,7 +191,6 @@ self.addEventListener('push', function (event: PushEvent) {
 
         const showNotificationPromise = self.registration
             .showNotification(payload.title || 'Vibe Check!', options)
-            .then(() => console.log('[SW] Notification shown successfully'))
             .catch((err) => console.error('[SW] Failed to show notification:', err));
 
         event.waitUntil(Promise.all([messageClientsPromise, showNotificationPromise])

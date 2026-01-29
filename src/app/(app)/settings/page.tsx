@@ -39,6 +39,10 @@ function isStandaloneDisplayMode(): boolean {
 
 // Helper to subscribe to push notifications
 async function subscribeToPush(): Promise<PushSubscription | null> {
+    if (typeof window !== 'undefined' && !window.isSecureContext) { 
+        throw new Error('Security Error: Push Notifications require HTTPS or Localhost. You seem to be on an insecure connection (http://IP...).') 
+    }
+
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
         throw new Error('Push notifications are not supported in your browser')
     }
@@ -50,31 +54,37 @@ async function subscribeToPush(): Promise<PushSubscription | null> {
     
     // Debug: Check existing registrations
     const existingReg = await navigator.serviceWorker.getRegistration()
-    console.log('[Push] Existing registration:', existingReg?.active?.state, existingReg?.installing?.state, existingReg?.waiting?.state)
+    // console.log('[Push] Existing registration:', existingReg?.active?.state, existingReg?.installing?.state, existingReg?.waiting?.state)
 
     // Ensure a service worker is registered (or register it as a fallback)
     let registration = existingReg
-    if (!registration) {
-        // Check if we're in development mode
+    
+    // If registration exists but relies on a broken worker (all null), force re-register
+    const isBrokenRegistration = registration && !registration.active && !registration.installing && !registration.waiting
+
+    if (!registration || isBrokenRegistration) {
+        // Check if we're in development mode (Allow localhost override)
+        /* 
         if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
             throw new Error('Push notifications are disabled in development mode. Deploy to production to test.')
-        }
+        } 
+        */
 
         // In production we should have it via <ServiceWorkerRegister />, but try to self-heal
-        console.log('[Push] No registration found, registering sw.js...')
+        // console.log('[Push] No registration found (or broken), registering sw.js...')
         registration = await navigator.serviceWorker.register('/sw.js')
-        console.log('[Push] Registered, state:', registration.active?.state, registration.installing?.state)
+        // console.log('[Push] Registered, state:', registration.active?.state, registration.installing?.state)
     }
 
     // If there's a waiting worker, force it to activate by calling skipWaiting
     // This fixes iOS Safari where the worker can get stuck in waiting state
     if (registration.waiting) {
-        console.log('[Push] Found waiting worker, forcing activation...')
+        // console.log('[Push] Found waiting worker, forcing activation...')
         
         // Set up controllerchange listener BEFORE posting message to avoid race condition
         const controllerChangePromise = new Promise<void>((resolve) => {
             const handler = () => {
-                console.log('[Push] Controller changed - new service worker activated')
+                // console.log('[Push] Controller changed - new service worker activated')
                 resolve()
             }
             navigator.serviceWorker.addEventListener('controllerchange', handler, { once: true })
