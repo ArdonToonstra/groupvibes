@@ -70,19 +70,27 @@ async function subscribeToPush(): Promise<PushSubscription | null> {
     // This fixes iOS Safari where the worker can get stuck in waiting state
     if (registration.waiting) {
         console.log('[Push] Found waiting worker, forcing activation...')
+        
+        // Set up controllerchange listener BEFORE posting message to avoid race condition
+        const controllerChangePromise = new Promise<void>((resolve) => {
+            const handler = () => {
+                console.log('[Push] Controller changed - new service worker activated')
+                resolve()
+            }
+            navigator.serviceWorker.addEventListener('controllerchange', handler, { once: true })
+            
+            // Also set a timeout in case controllerchange doesn't fire
+            setTimeout(() => {
+                navigator.serviceWorker.removeEventListener('controllerchange', handler)
+                resolve()
+            }, 3000)
+        })
+        
         // Tell the waiting service worker to skip waiting and become active
         registration.waiting.postMessage({ type: 'SKIP_WAITING' })
         
         // Wait for the new service worker to take control
-        await new Promise<void>((resolve) => {
-            navigator.serviceWorker.addEventListener('controllerchange', () => {
-                console.log('[Push] Controller changed - new service worker activated')
-                resolve()
-            }, { once: true })
-            
-            // Also set a timeout in case controllerchange doesn't fire
-            setTimeout(resolve, 2000)
-        })
+        await controllerChangePromise
         
         // After activation, get the updated registration
         const updatedReg = await navigator.serviceWorker.getRegistration()

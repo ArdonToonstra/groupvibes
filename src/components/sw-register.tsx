@@ -9,6 +9,8 @@ export function ServiceWorkerRegister() {
       'serviceWorker' in navigator &&
       process.env.NODE_ENV === 'production'
     ) {
+      let controllerChangeHandler: (() => void) | null = null
+      
       // Register the service worker
       navigator.serviceWorker
         .register('/sw.js')
@@ -31,20 +33,28 @@ export function ServiceWorkerRegister() {
                   console.log('[SW] New content available, activating...')
                   newWorker.postMessage({ type: 'SKIP_WAITING' })
                 }
-              })
+              }, { once: true })
             }
           })
           
           // Listen for controller changes (when new SW takes over)
-          navigator.serviceWorker.addEventListener('controllerchange', () => {
-            console.log('[SW] Controller changed - reloading page for new version')
-            // Optionally reload the page to get the new version
-            // window.location.reload()
-          })
+          controllerChangeHandler = () => {
+            console.log('[SW] Controller changed - new service worker activated')
+            // Note: We don't reload here to avoid disrupting the user
+            // The new SW will take effect on next page load or navigation
+          }
+          navigator.serviceWorker.addEventListener('controllerchange', controllerChangeHandler)
         })
         .catch((error) => {
           console.error('[SW] Service worker registration failed:', error)
         })
+      
+      // Cleanup function to remove event listener when component unmounts
+      return () => {
+        if (controllerChangeHandler) {
+          navigator.serviceWorker.removeEventListener('controllerchange', controllerChangeHandler)
+        }
+      }
     }
   }, [])
 
