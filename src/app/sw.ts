@@ -58,10 +58,14 @@ async function handleSessionRequest(request: Request): Promise<Response> {
 // ============================================
 // Serwist instance
 // ============================================
+// Note: We handle skipWaiting and clientsClaim manually in the event handlers
+// below instead of via Serwist config. This is because iOS Safari requires
+// these to be called during the install/activate events (not in constructor)
+// for proper service worker lifecycle management.
 const serwist = new Serwist({
     precacheEntries: self.__SW_MANIFEST,
-    skipWaiting: true,
-    clientsClaim: true,
+    skipWaiting: false, // Handled manually in install event for iOS Safari compatibility
+    clientsClaim: false, // Handled manually in activate event for iOS Safari compatibility
     navigationPreload: true,
     runtimeCaching: defaultCache,
     fallbacks: {
@@ -76,16 +80,50 @@ const serwist = new Serwist({
     },
 });
 
+// Register Serwist's event listeners first (for precaching, etc.)
 serwist.addEventListeners();
+
+// ============================================
+// Explicit install event handler (after Serwist)
+// ============================================
+// iOS Safari requires explicit lifecycle management
+// This handler is registered AFTER Serwist's handler, but both will run
+// during the install event. The skipWaiting() call activates the service
+// worker immediately after installation completes.
+self.addEventListener('install', function (event: ExtendableEvent) {
+    console.log('[SW] Install event fired - calling skipWaiting for iOS Safari');
+    // Skip waiting to activate immediately (critical for iOS Safari)
+    // This will activate the SW after Serwist's precaching completes
+    event.waitUntil(
+        self.skipWaiting().then(() => {
+            console.log('[SW] Skip waiting completed during install');
+        })
+    );
+});
+
+// ============================================
+// Explicit activate event handler (after Serwist)
+// ============================================
+// iOS Safari requires explicit client claiming
+// This ensures the service worker takes control immediately on activation
+self.addEventListener('activate', function (event: ExtendableEvent) {
+    console.log('[SW] Activate event fired - claiming clients for iOS Safari');
+    // Take control of all clients immediately (critical for iOS Safari)
+    event.waitUntil(
+        self.clients.claim().then(() => {
+            console.log('[SW] Clients claimed during activate');
+        })
+    );
+});
 
 // ============================================
 // Message handler for forcing skip waiting
 // ============================================
-// Note: While Serwist has skipWaiting: true configured above, that only
-// applies during initial installation. This message handler is needed for
-// two additional scenarios:
+// This message handler allows forcing service worker activation from the page.
+// Scenarios:
 // 1. When a user refreshes while a new worker is waiting
-// 2. iOS Safari edge cases where explicit activation is required
+// 2. Manual activation triggered by the ServiceWorkerRegister component
+// 3. iOS Safari edge cases where explicit activation is required
 self.addEventListener('message', function (event: ExtendableMessageEvent) {
     console.log('[SW] Message received:', event.data);
     
