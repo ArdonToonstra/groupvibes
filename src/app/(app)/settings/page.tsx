@@ -404,6 +404,13 @@ function SettingsContent() {
         return () => clearInterval(intervalId)
     }, [])
 
+    // Sync solo notification frequency from query data
+    useEffect(() => {
+        if (pushStatusQuery.data?.notificationFrequency !== undefined) {
+            setSoloNotificationFrequency(pushStatusQuery.data.notificationFrequency)
+        }
+    }, [pushStatusQuery.data?.notificationFrequency])
+
     // Debug: receive messages from service worker when a push arrives
     useEffect(() => {
         if (!('serviceWorker' in navigator)) return
@@ -939,7 +946,7 @@ function SettingsContent() {
                                                 </div>
                                             </div>
                                             <select
-                                                value={pushStatusQuery.data?.notificationFrequency ?? 1}
+                                                value={soloNotificationFrequency}
                                                 onChange={async (e) => {
                                                     const newFreq = parseInt(e.target.value)
                                                     setSoloNotificationFrequency(newFreq)
