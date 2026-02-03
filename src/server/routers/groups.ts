@@ -346,6 +346,13 @@ export const groupsRouter = createTRPCRouter({
       quietHoursStart: z.number().min(0).max(23).optional().nullable(),
       quietHoursEnd: z.number().min(0).max(23).optional().nullable(),
       vibeAverageHours: z.number().min(1).max(168).optional(), // 1 hour to 1 week
+      // Notification customization
+      notificationTitle: z.string().max(50).optional().nullable(),
+      notificationBody: z.string().max(200).optional().nullable(),
+      // Fixed schedule settings
+      scheduleDays: z.array(z.number().min(0).max(6)).optional().nullable(), // 0=Sun, 1=Mon, ..., 6=Sat
+      scheduleTimes: z.array(z.number().min(0).max(23)).optional().nullable(), // Hour 0-23
+      ownerTimezone: z.string().optional().nullable(),
     }))
     .mutation(async ({ ctx, input }) => {
       const group = await ctx.db.query.groups.findFirst({
@@ -427,6 +434,13 @@ export const groupsRouter = createTRPCRouter({
         vibeAverageHours: group.vibeAverageHours,
         ownerId: group.ownerId,
         isOwner: group.ownerId === ctx.user.id,
+        // Notification customization
+        notificationTitle: group.notificationTitle,
+        notificationBody: group.notificationBody,
+        // Fixed schedule settings
+        scheduleDays: group.scheduleDays,
+        scheduleTimes: group.scheduleTimes,
+        ownerTimezone: group.ownerTimezone,
         members: memberships.map(m => ({
           id: m.user.id,
           name: m.user.displayName || m.user.name,
