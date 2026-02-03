@@ -318,7 +318,6 @@ function SettingsContent() {
     const [resettingPush, setResettingPush] = useState(false)
     const [calendarModalOpen, setCalendarModalOpen] = useState(false)
     const [showSubscriptionDetails, setShowSubscriptionDetails] = useState(false)
-    const [soloNotificationFrequency, setSoloNotificationFrequency] = useState(1)
 
     // Redirect if unauthorized
     useEffect(() => {
