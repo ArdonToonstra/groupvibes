@@ -286,6 +286,7 @@ function SettingsContent() {
     // Push notification state
     const [pushEnabled, setPushEnabled] = useState(false)
     const [pushLoading, setPushLoading] = useState(true)
+    const [soloNotificationFrequency, setSoloNotificationFrequency] = useState(2)
 
     // Admin settings state
     const [frequency, setFrequency] = useState(2)
