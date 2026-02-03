@@ -24,6 +24,10 @@ export const users = pgTable('user', {
   timezone: text('timezone').default('UTC'), // User's timezone for quiet hours calculation
   customActivityIds: text('custom_activity_ids').array(), // User's selected activity tag IDs
   shareCheckInsGlobally: boolean('share_check_ins_globally').default(false), // When true, check-ins visible to all groups
+  
+  // Notification tracking
+  lastNotifiedAt: timestamp('last_notified_at'), // When user last received a notification
+  notificationFrequency: integer('notification_frequency').default(1), // For solo users: 1=daily, 2=every 2 days, 3=every 3 days, 7=weekly
 })
 
 export const sessions = pgTable('session', {
@@ -80,6 +84,15 @@ export const groups = pgTable('groups', {
   nextPingTime: timestamp('next_ping_time'), // When the next ping should be sent
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  
+  // Notification customization (owner can customize)
+  notificationTitle: varchar('notification_title', { length: 50 }), // Custom push title (max 50 chars)
+  notificationBody: varchar('notification_body', { length: 200 }), // Custom push body (max 200 chars)
+  
+  // Fixed schedule support (when intervalMode = 'fixed')
+  scheduleDays: integer('schedule_days').array(), // Days of week: 0=Sun, 1=Mon, ..., 6=Sat
+  scheduleTimes: integer('schedule_times').array(), // Hours: 0-23
+  ownerTimezone: text('owner_timezone').default('UTC'), // Timezone for fixed schedule
 })
 
 // ============================================

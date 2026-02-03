@@ -311,9 +311,14 @@ function SettingsContent() {
     const pushSendTestMutation = trpc.push.sendTest.useMutation()
     const pushClearAllMutation = trpc.push.clearAll.useMutation()
     const pushListQuery = trpc.push.list.useQuery(undefined, { enabled: false })
+    const pushStatusQuery = trpc.push.getDetailedStatus.useQuery(undefined, { enabled: pushEnabled })
+    const pushDeleteByIdMutation = trpc.push.deleteById.useMutation()
+    const pushUpdateFrequencyMutation = trpc.push.updateFrequency.useMutation()
     const [testingSending, setTestingSending] = useState(false)
     const [resettingPush, setResettingPush] = useState(false)
     const [calendarModalOpen, setCalendarModalOpen] = useState(false)
+    const [showSubscriptionDetails, setShowSubscriptionDetails] = useState(false)
+    const [soloNotificationFrequency, setSoloNotificationFrequency] = useState(1)
 
     // Redirect if unauthorized
     useEffect(() => {
@@ -460,6 +465,14 @@ function SettingsContent() {
     // Handle admin settings save
     const handleAdminSettingsSave = async (field: string, value: any) => {
         if (!isOwnerOfSelectedGroup || !group) return
+
+        // Update local state immediately for responsive UI
+        setGroup({ ...group, [field]: value })
+        
+        // Also update in allGroups array
+        setAllGroups(prev => prev.map(g => 
+            g.id === group.id ? { ...g, [field]: value } : g
+        ))
 
         setSaveStatus({ field, status: 'saving' })
         try {
@@ -846,6 +859,96 @@ function SettingsContent() {
                                             )}
                                         </Button>
                                     </div>
+
+                                    {/* Subscription Status */}
+                                    <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-xl space-y-3">
+                                        <button
+                                            onClick={() => {
+                                                setShowSubscriptionDetails(!showSubscriptionDetails)
+                                                if (!showSubscriptionDetails) {
+                                                    pushStatusQuery.refetch()
+                                                }
+                                            }}
+                                            className="flex items-center justify-between w-full"
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <Smartphone className="w-5 h-5 text-blue-500" />
+                                                <div className="text-left">
+                                                    <div className="font-semibold text-gray-700 dark:text-gray-200">Subscription Status</div>
+                                                    <div className="text-xs text-gray-500">
+                                                        {pushStatusQuery.data?.subscriptionCount ?? '...'} device(s) registered
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <span className="text-gray-400 text-sm">{showSubscriptionDetails ? '▲' : '▼'}</span>
+                                        </button>
+
+                                        {showSubscriptionDetails && pushStatusQuery.data && (
+                                            <div className="pt-3 border-t border-gray-200 dark:border-gray-700 space-y-2">
+                                                {pushStatusQuery.data.lastNotifiedAt && (
+                                                    <div className="text-xs text-gray-500">
+                                                        Last notification: {new Date(pushStatusQuery.data.lastNotifiedAt).toLocaleString()}
+                                                    </div>
+                                                )}
+                                                {pushStatusQuery.data.subscriptions.length === 0 ? (
+                                                    <div className="text-sm text-gray-500">No subscriptions found</div>
+                                                ) : (
+                                                    pushStatusQuery.data.subscriptions.map((sub) => (
+                                                        <div key={sub.id} className="flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded-lg">
+                                                            <div>
+                                                                <div className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                                                                    {sub.browser} ({sub.platform})
+                                                                </div>
+                                                                <div className="text-xs text-gray-400">
+                                                                    Added {new Date(sub.createdAt).toLocaleDateString()}
+                                                                </div>
+                                                            </div>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                onClick={async () => {
+                                                                    if (!confirm('Remove this device from notifications?')) return
+                                                                    await pushDeleteByIdMutation.mutateAsync({ subscriptionId: sub.id })
+                                                                    pushStatusQuery.refetch()
+                                                                }}
+                                                                className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                                                            >
+                                                                <Trash2 className="w-4 h-4" />
+                                                            </Button>
+                                                        </div>
+                                                    ))
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Solo User Notification Frequency (only shown when no active group) */}
+                                    {!user?.activeGroupId && (
+                                        <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
+                                            <div className="flex items-center gap-3 mb-3">
+                                                <Clock className="w-5 h-5 text-blue-500" />
+                                                <div>
+                                                    <div className="font-semibold text-gray-700 dark:text-gray-200">Notification Frequency</div>
+                                                    <div className="text-xs text-gray-500">How often to receive vibe check reminders</div>
+                                                </div>
+                                            </div>
+                                            <select
+                                                value={pushStatusQuery.data?.notificationFrequency ?? 1}
+                                                onChange={async (e) => {
+                                                    const newFreq = parseInt(e.target.value)
+                                                    setSoloNotificationFrequency(newFreq)
+                                                    await pushUpdateFrequencyMutation.mutateAsync({ frequency: newFreq })
+                                                    pushStatusQuery.refetch()
+                                                }}
+                                                className="w-full p-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200"
+                                            >
+                                                <option value={1}>Every day</option>
+                                                <option value={2}>Every 2 days</option>
+                                                <option value={3}>Every 3 days</option>
+                                                <option value={7}>Once per week</option>
+                                            </select>
+                                        </div>
+                                    )}
                                 </>
                             )}
                         </Card>
@@ -1067,12 +1170,16 @@ function SettingsContent() {
                             </div>
                         </Card>
 
+
+
                         {/* Group Settings - Visible to all, editable by owners */}
+
+                        {/* Group Pulse Time Window - Separate Card */}
                         <Card className="p-6 border-none shadow-sm rounded-2xl bg-white dark:bg-gray-800 space-y-4">
                             <div className="flex items-center justify-between mb-2">
                                 <div className="flex items-center gap-2">
-                                    <Zap className="w-5 h-5 text-primary" />
-                                    <h2 className="font-semibold text-gray-900 dark:text-white">Ping Settings</h2>
+                                    <Clock className="w-5 h-5 text-primary" />
+                                    <h2 className="font-semibold text-gray-900 dark:text-white">Group Pulse</h2>
                                 </div>
                                 {!isOwnerOfSelectedGroup && (
                                     <span className="text-xs text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-full">View only</span>
@@ -1082,31 +1189,7 @@ function SettingsContent() {
                             <div className={!isOwnerOfSelectedGroup ? 'opacity-60 pointer-events-none' : ''}>
                                 <div className="flex justify-between items-center mb-2">
                                     <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500">
-                                        Pings per Week
-                                    </label>
-                                    {isOwnerOfSelectedGroup && <StatusIndicator fieldName="frequency" />}
-                                </div>
-                                <div className="flex items-center gap-3">
-                                    <input
-                                        type="range"
-                                        min="1"
-                                        max="7"
-                                        value={frequency}
-                                        onChange={(e) => isOwnerOfSelectedGroup && setFrequency(parseInt(e.target.value))}
-                                        onMouseUp={() => isOwnerOfSelectedGroup && handleAdminSettingsSave('frequency', frequency)}
-                                        onTouchEnd={() => isOwnerOfSelectedGroup && handleAdminSettingsSave('frequency', frequency)}
-                                        disabled={!isOwnerOfSelectedGroup}
-                                        className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700 accent-primary disabled:cursor-not-allowed"
-                                    />
-                                    <span className="text-lg font-bold text-primary w-8 text-center">{frequency}</span>
-                                </div>
-                                <p className="text-xs text-gray-500 mt-1">How often members get pinged for check-ins</p>
-                            </div>
-
-                            <div className={`pt-2 border-t border-gray-100 dark:border-gray-700 ${!isOwnerOfSelectedGroup ? 'opacity-60 pointer-events-none' : ''}`}>
-                                <div className="flex justify-between items-center mb-2">
-                                    <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500">
-                                        Group Pulse Time Window
+                                        Time Window
                                     </label>
                                     {isOwnerOfSelectedGroup && <StatusIndicator fieldName="vibeAverageHours" />}
                                 </div>
@@ -1130,61 +1213,240 @@ function SettingsContent() {
                                 </select>
                                 <p className="text-xs text-gray-500 mt-1">Time window for calculating the group vibe average</p>
                             </div>
+                        </Card>
 
-                            <div className={`pt-2 border-t border-gray-100 dark:border-gray-700 ${!isOwnerOfSelectedGroup ? 'opacity-60 pointer-events-none' : ''}`}>
-                                <div className="flex items-center gap-2 mb-3">
-                                    <Clock className="w-4 h-4 text-gray-500" />
-                                    <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500">
-                                        Quiet Hours
-                                    </label>
-                                    {isOwnerOfSelectedGroup && <StatusIndicator fieldName="quietHours" />}
+                        <Card className="p-6 border-none shadow-sm rounded-2xl bg-white dark:bg-gray-800 space-y-4">
+                            <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-2">
+                                    <Zap className="w-5 h-5 text-primary" />
+                                    <h2 className="font-semibold text-gray-900 dark:text-white">Ping Settings</h2>
                                 </div>
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div>
-                                        <label className="text-xs text-gray-500 mb-1 block">Start</label>
-                                        <select
-                                            value={quietHoursStart ?? ''}
-                                            onChange={(e) => {
-                                                if (!isOwnerOfSelectedGroup) return
-                                                const val = e.target.value === '' ? null : parseInt(e.target.value)
-                                                setQuietHoursStart(val)
-                                                handleAdminSettingsSave('quietHoursStart', val)
-                                            }}
-                                            disabled={!isOwnerOfSelectedGroup}
-                                            className="w-full h-10 px-3 bg-gray-50 dark:bg-gray-900 rounded-lg border-0 text-sm disabled:cursor-not-allowed"
-                                        >
-                                            <option value="">Off</option>
-                                            {Array.from({ length: 24 }, (_, i) => (
-                                                <option key={i} value={i}>
-                                                    {i.toString().padStart(2, '0')}:00
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="text-xs text-gray-500 mb-1 block">End</label>
-                                        <select
-                                            value={quietHoursEnd ?? ''}
-                                            onChange={(e) => {
-                                                if (!isOwnerOfSelectedGroup) return
-                                                const val = e.target.value === '' ? null : parseInt(e.target.value)
-                                                setQuietHoursEnd(val)
-                                                handleAdminSettingsSave('quietHoursEnd', val)
-                                            }}
-                                            disabled={!isOwnerOfSelectedGroup}
-                                            className="w-full h-10 px-3 bg-gray-50 dark:bg-gray-900 rounded-lg border-0 text-sm disabled:cursor-not-allowed"
-                                        >
-                                            <option value="">Off</option>
-                                            {Array.from({ length: 24 }, (_, i) => (
-                                                <option key={i} value={i}>
-                                                    {i.toString().padStart(2, '0')}:00
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                </div>
-                                <p className="text-xs text-gray-500 mt-2">No pings will be sent during quiet hours</p>
+                                {!isOwnerOfSelectedGroup && (
+                                    <span className="text-xs text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-full">View only</span>
+                                )}
                             </div>
+
+                            <div className={!isOwnerOfSelectedGroup ? 'opacity-60 pointer-events-none' : ''}>
+                                <div className="flex justify-between items-center mb-2">
+                                    <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500">
+                                        Notification Frequency
+                                    </label>
+                                    {isOwnerOfSelectedGroup && <StatusIndicator fieldName="frequency" />}
+                                </div>
+                                <select
+                                    value={frequency}
+                                    onChange={(e) => {
+                                        if (!isOwnerOfSelectedGroup) return
+                                        const val = parseInt(e.target.value)
+                                        setFrequency(val)
+                                        handleAdminSettingsSave('frequency', val)
+                                    }}
+                                    disabled={!isOwnerOfSelectedGroup}
+                                    className="w-full h-10 px-3 bg-gray-50 dark:bg-gray-900 rounded-lg border-0 text-sm disabled:cursor-not-allowed"
+                                >
+                                    <option value={7}>Every day</option>
+                                    <option value={3}>Every 2-3 days</option>
+                                    <option value={2}>Every 3-4 days</option>
+                                    <option value={1}>Once per week</option>
+                                </select>
+                                <p className="text-xs text-gray-500 mt-1">How often members get pinged for check-ins</p>
+                            </div>
+
+                            {/* Notification Timing - Right after Frequency */}
+                            <div className={`pt-2 border-t border-gray-100 dark:border-gray-700 ${!isOwnerOfSelectedGroup ? 'opacity-60 pointer-events-none' : ''}`}>
+                                <div className="flex justify-between items-center mb-2">
+                                    <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500">
+                                        Notification Timing
+                                    </label>
+                                    {isOwnerOfSelectedGroup && <StatusIndicator fieldName="intervalMode" />}
+                                </div>
+                                <select
+                                    value={group?.intervalMode ?? 'random'}
+                                    onChange={(e) => {
+                                        if (!isOwnerOfSelectedGroup) return
+                                        const val = e.target.value as 'random' | 'fixed'
+                                        handleAdminSettingsSave('intervalMode', val)
+                                    }}
+                                    disabled={!isOwnerOfSelectedGroup}
+                                    className="w-full h-10 px-3 bg-gray-50 dark:bg-gray-900 rounded-lg border-0 text-sm disabled:cursor-not-allowed"
+                                >
+                                    <option value="random">Random (varied timing throughout the day)</option>
+                                    <option value="fixed">Fixed (same time each day)</option>
+                                </select>
+                                <p className="text-xs text-gray-500 mt-1">
+                                    {group?.intervalMode === 'fixed' 
+                                        ? 'Notifications sent at the same time each scheduled day' 
+                                        : 'Notifications sent at random times, avoiding quiet hours'}
+                                </p>
+                            </div>
+
+                            {/* Quiet Hours - Only shown for Random timing */}
+                            {group?.intervalMode !== 'fixed' && (
+                                <div className={`pt-2 border-t border-gray-100 dark:border-gray-700 ${!isOwnerOfSelectedGroup ? 'opacity-60 pointer-events-none' : ''}`}>
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <Clock className="w-4 h-4 text-gray-500" />
+                                        <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500">
+                                            Quiet Hours
+                                        </label>
+                                        {isOwnerOfSelectedGroup && <StatusIndicator fieldName="quietHours" />}
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="text-xs text-gray-500 mb-1 block">Start</label>
+                                            <select
+                                                value={quietHoursStart ?? ''}
+                                                onChange={(e) => {
+                                                    if (!isOwnerOfSelectedGroup) return
+                                                    const val = e.target.value === '' ? null : parseInt(e.target.value)
+                                                    setQuietHoursStart(val)
+                                                    handleAdminSettingsSave('quietHoursStart', val)
+                                                }}
+                                                disabled={!isOwnerOfSelectedGroup}
+                                                className="w-full h-10 px-3 bg-gray-50 dark:bg-gray-900 rounded-lg border-0 text-sm disabled:cursor-not-allowed"
+                                            >
+                                                <option value="">Off</option>
+                                                {Array.from({ length: 24 }, (_, i) => (
+                                                    <option key={i} value={i}>
+                                                        {i.toString().padStart(2, '0')}:00
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="text-xs text-gray-500 mb-1 block">End</label>
+                                            <select
+                                                value={quietHoursEnd ?? ''}
+                                                onChange={(e) => {
+                                                    if (!isOwnerOfSelectedGroup) return
+                                                    const val = e.target.value === '' ? null : parseInt(e.target.value)
+                                                    setQuietHoursEnd(val)
+                                                    handleAdminSettingsSave('quietHoursEnd', val)
+                                                }}
+                                                disabled={!isOwnerOfSelectedGroup}
+                                                className="w-full h-10 px-3 bg-gray-50 dark:bg-gray-900 rounded-lg border-0 text-sm disabled:cursor-not-allowed"
+                                            >
+                                                <option value="">Off</option>
+                                                {Array.from({ length: 24 }, (_, i) => (
+                                                    <option key={i} value={i}>
+                                                        {i.toString().padStart(2, '0')}:00
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <p className="text-xs text-gray-500 mt-2">No pings will be sent during quiet hours</p>
+                                </div>
+                            )}
+
+                            {/* Fixed Time - Only shown for Fixed timing */}
+                            {group?.intervalMode === 'fixed' && (
+                                <div className={`pt-2 border-t border-gray-100 dark:border-gray-700 ${!isOwnerOfSelectedGroup ? 'opacity-60 pointer-events-none' : ''}`}>
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <Clock className="w-4 h-4 text-gray-500" />
+                                        <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500">
+                                            Notification Time
+                                        </label>
+                                        {isOwnerOfSelectedGroup && <StatusIndicator fieldName="scheduleTimes" />}
+                                    </div>
+                                    <select
+                                        value={(group?.scheduleTimes && group.scheduleTimes.length > 0) ? group.scheduleTimes[0] : 9}
+                                        onChange={(e) => {
+                                            if (!isOwnerOfSelectedGroup) return
+                                            const val = parseInt(e.target.value)
+                                            handleAdminSettingsSave('scheduleTimes', [val])
+                                        }}
+                                        disabled={!isOwnerOfSelectedGroup}
+                                        className="w-full h-10 px-3 bg-gray-50 dark:bg-gray-900 rounded-lg border-0 text-sm disabled:cursor-not-allowed"
+                                    >
+                                        {Array.from({ length: 24 }, (_, i) => (
+                                            <option key={i} value={i}>
+                                                {i.toString().padStart(2, '0')}:00
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <p className="text-xs text-gray-500 mt-2">Time is based on the group owner&apos;s timezone</p>
+                                </div>
+                            )}
+                        </Card>
+
+
+                        {/* Notification Customization - Visible to all, editable by owners */}
+                        <Card className="p-6 border-none shadow-sm rounded-2xl bg-white dark:bg-gray-800 space-y-4">
+                            <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-2">
+                                    <Bell className="w-5 h-5 text-primary" />
+                                    <h2 className="font-semibold text-gray-900 dark:text-white">Custom Notification Message</h2>
+                                </div>
+                                {!isOwnerOfSelectedGroup && (
+                                    <span className="text-xs text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-full">View only</span>
+                                )}
+                            </div>
+                            <p className="text-sm text-gray-500">
+                                {isOwnerOfSelectedGroup 
+                                    ? 'Customize the push notification your group members receive'
+                                    : 'The notification message set by the group owner'}
+                            </p>
+
+                            <div className={!isOwnerOfSelectedGroup ? 'opacity-60 pointer-events-none' : ''}>
+                                <div className="flex justify-between items-center mb-2">
+                                    <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500">
+                                        Title (max 50 chars)
+                                    </label>
+                                    {isOwnerOfSelectedGroup && <StatusIndicator fieldName="notificationTitle" />}
+                                </div>
+                                <Input
+                                    value={group?.notificationTitle || ''}
+                                    onChange={(e) => {
+                                        if (!isOwnerOfSelectedGroup) return
+                                        const val = e.target.value.slice(0, 50)
+                                        // Update local state immediately for responsiveness
+                                        setGroup({ ...group, notificationTitle: val })
+                                    }}
+                                    onBlur={(e) => {
+                                        if (!isOwnerOfSelectedGroup) return
+                                        const val = e.target.value.trim() || null
+                                        handleAdminSettingsSave('notificationTitle', val)
+                                    }}
+                                    placeholder="Vibe Check! 🎯"
+                                    maxLength={50}
+                                    disabled={!isOwnerOfSelectedGroup}
+                                    className="h-10 bg-gray-50 dark:bg-gray-900 border-0 disabled:cursor-not-allowed"
+                                />
+                                {isOwnerOfSelectedGroup && (
+                                    <p className="text-xs text-gray-400 mt-1">{(group?.notificationTitle || '').length}/50</p>
+                                )}
+                            </div>
+
+                            <div className={!isOwnerOfSelectedGroup ? 'opacity-60 pointer-events-none' : ''}>
+                                <div className="flex justify-between items-center mb-2">
+                                    <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500">
+                                        Body (max 200 chars)
+                                    </label>
+                                    {isOwnerOfSelectedGroup && <StatusIndicator fieldName="notificationBody" />}
+                                </div>
+                                <Input
+                                    value={group?.notificationBody || ''}
+                                    onChange={(e) => {
+                                        if (!isOwnerOfSelectedGroup) return
+                                        const val = e.target.value.slice(0, 200)
+                                        setGroup({ ...group, notificationBody: val })
+                                    }}
+                                    onBlur={(e) => {
+                                        if (!isOwnerOfSelectedGroup) return
+                                        const val = e.target.value.trim() || null
+                                        handleAdminSettingsSave('notificationBody', val)
+                                    }}
+                                    placeholder="How are you feeling right now?"
+                                    maxLength={200}
+                                    disabled={!isOwnerOfSelectedGroup}
+                                    className="h-10 bg-gray-50 dark:bg-gray-900 border-0 disabled:cursor-not-allowed"
+                                />
+                                {isOwnerOfSelectedGroup && (
+                                    <p className="text-xs text-gray-400 mt-1">{(group?.notificationBody || '').length}/200</p>
+                                )}
+                            </div>
+
+                            
                         </Card>
 
                         <Card className="p-6 border-none shadow-sm rounded-2xl bg-white dark:bg-gray-800 space-y-4">

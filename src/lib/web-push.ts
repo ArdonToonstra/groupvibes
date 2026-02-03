@@ -166,21 +166,156 @@ export async function sendToGroup(
 }
 
 /**
+ * Get minimum hours between notifications based on frequency setting
+ * This prevents duplicate notifications within the minimum interval
+ * 
+ * Frequency options:
+ * - 1 = Every day (24 hours between notifications, 8 hour safety cap)
+ * - 2 = Every 2 days (48 hours between notifications)
+ * - 3 = Every 3 days (72 hours between notifications)
+ * - 7 = Once per week (168 hours between notifications)
+ */
+export function getMinHoursBetweenNotifications(frequency: number): number {
+  const hoursMap: Record<number, number> = {
+    1: 8,   // Daily - 8 hour safety cap (was getting duplicates with 24h)
+    2: 48,  // Every 2 days
+    3: 72,  // Every 3 days
+    7: 168, // Weekly
+  }
+  return hoursMap[frequency] || 8 // Default to 8 hours if unknown
+}
+
+/**
+ * Check if enough time has passed since last notification
+ */
+export function canSendNotification(lastNotifiedAt: Date | null, frequency: number): boolean {
+  if (!lastNotifiedAt) return true
+  
+  const minHours = getMinHoursBetweenNotifications(frequency)
+  const hoursSinceLastNotification = (Date.now() - lastNotifiedAt.getTime()) / (1000 * 60 * 60)
+  
+  return hoursSinceLastNotification >= minHours
+}
+
+/**
+ * Get schedule days based on frequency setting
+ * Used for fixed timing mode - the days are derived from frequency, not user-selected
+ * 
+ * Frequency mapping:
+ * - 7 (every day): all days [0,1,2,3,4,5,6]
+ * - 3 (every 2-3 days): Mon, Wed, Fri [1,3,5]
+ * - 2 (every 3-4 days): Mon, Thu [1,4]
+ * - 1 (once per week): Wed [3]
+ */
+export function getScheduleDaysFromFrequency(frequency: number): number[] {
+  switch (frequency) {
+    case 7:
+      return [0, 1, 2, 3, 4, 5, 6] // Every day
+    case 3:
+      return [1, 3, 5] // Mon, Wed, Fri
+    case 2:
+      return [1, 4] // Mon, Thu
+    case 1:
+    default:
+      return [3] // Wed only
+  }
+}
+
+/**
+ * Find the next scheduled time based on specific days and hours
+ * Used for fixed schedule mode when scheduleDays and scheduleTimes are set
+ */
+export function findNextScheduledTime(
+  now: Date,
+  scheduleDays: number[], // 0-6 (Sun-Sat)
+  scheduleTimes: number[], // 0-23
+  ownerTimezone: string = 'UTC'
+): Date {
+  if (!scheduleDays.length || !scheduleTimes.length) {
+    // Fallback: next hour
+    return new Date(now.getTime() + 60 * 60 * 1000)
+  }
+  
+  // Sort times ascending
+  const sortedTimes = [...scheduleTimes].sort((a, b) => a - b)
+  const sortedDays = [...scheduleDays].sort((a, b) => a - b)
+  
+  // Get current time in owner's timezone
+  const nowInTz = new Date(now.toLocaleString('en-US', { timeZone: ownerTimezone }))
+  const currentDayOfWeek = nowInTz.getDay()
+  const currentHour = nowInTz.getHours()
+  const currentMinute = nowInTz.getMinutes()
+  
+  // Check each day starting from today, up to 8 days ahead (to ensure we find next week)
+  for (let dayOffset = 0; dayOffset <= 7; dayOffset++) {
+    const checkDayOfWeek = (currentDayOfWeek + dayOffset) % 7
+    
+    if (!sortedDays.includes(checkDayOfWeek)) continue
+    
+    for (const hour of sortedTimes) {
+      // Skip times that have already passed today
+      if (dayOffset === 0) {
+        if (hour < currentHour || (hour === currentHour && currentMinute >= 30)) {
+          continue
+        }
+      }
+      
+      // Calculate the target date
+      const targetDate = new Date(now)
+      targetDate.setDate(targetDate.getDate() + dayOffset)
+      
+      // Set the target time in the owner's timezone
+      // We need to construct the date string in the target timezone
+      const year = targetDate.getFullYear()
+      const month = targetDate.getMonth()
+      const day = targetDate.getDate()
+      
+      // Create a date at the target hour in owner's timezone
+      const targetInTz = new Date(
+        new Date(year, month, day, hour, 0, 0, 0)
+          .toLocaleString('en-US', { timeZone: ownerTimezone })
+      )
+      
+      // Convert back to UTC for storage
+      const tzOffset = targetInTz.getTimezoneOffset() - new Date().getTimezoneOffset()
+      const resultDate = new Date(year, month, day, hour, 0, 0, 0)
+      resultDate.setMinutes(resultDate.getMinutes() - tzOffset)
+      
+      if (resultDate > now) {
+        return resultDate
+      }
+    }
+  }
+  
+  // Fallback: next hour (shouldn't happen with valid input)
+  return new Date(now.getTime() + 60 * 60 * 1000)
+}
+
+/**
  * Calculate the next ping time using Poisson-like distribution
  * This creates more natural, random-feeling intervals
  * 
- * @param frequency - Number of pings per week
+ * @param frequency - Number of pings per week (for random mode) or notification frequency setting
+ * @param intervalMode - 'random' for Poisson distribution, 'fixed' for scheduled times
+ * @param scheduleDays - Days of week for fixed schedule (0-6) - if not provided, derived from frequency
+ * @param scheduleTimes - Hours for fixed schedule (0-23)
+ * @param ownerTimezone - Timezone for fixed schedule
  * @returns Next ping time as Date
  */
-export function calculateNextPingTime(frequency: number, intervalMode: 'random' | 'fixed'): Date {
+export function calculateNextPingTime(
+  frequency: number, 
+  intervalMode: 'random' | 'fixed',
+  scheduleDays?: number[] | null,
+  scheduleTimes?: number[] | null,
+  ownerTimezone?: string | null
+): Date {
   const now = new Date()
   
+  // Fixed schedule mode - derive days from frequency if not explicitly set
   if (intervalMode === 'fixed') {
-    // For fixed mode, distribute evenly across the week
-    // e.g., 7 pings/week = every 24 hours
-    const hoursPerPing = (7 * 24) / frequency
-    const nextPing = new Date(now.getTime() + hoursPerPing * 60 * 60 * 1000)
-    return nextPing
+    const days = scheduleDays?.length ? scheduleDays : getScheduleDaysFromFrequency(frequency)
+    const times = scheduleTimes?.length ? scheduleTimes : [9] // Default to 9am if no time set
+    return findNextScheduledTime(now, days, times, ownerTimezone || 'UTC')
   }
   
   // For random mode, use exponential distribution (Poisson process)
@@ -204,12 +339,23 @@ export function calculateNextPingTime(frequency: number, intervalMode: 'random' 
 /**
  * Initialize next ping time for a group if not set
  */
-export function initializeNextPingTime(frequency: number, intervalMode: 'random' | 'fixed'): Date {
-  // For new groups, schedule first ping within the next few hours
+export function initializeNextPingTime(
+  frequency: number, 
+  intervalMode: 'random' | 'fixed',
+  scheduleDays?: number[] | null,
+  scheduleTimes?: number[] | null,
+  ownerTimezone?: string | null
+): Date {
+  // If fixed mode, use scheduled time (derive days from frequency if not set)
+  if (intervalMode === 'fixed') {
+    const days = scheduleDays?.length ? scheduleDays : getScheduleDaysFromFrequency(frequency)
+    const times = scheduleTimes?.length ? scheduleTimes : [9] // Default to 9am
+    return findNextScheduledTime(new Date(), days, times, ownerTimezone || 'UTC')
+  }
+  
+  // For new groups with random mode, schedule first ping within the next few hours
   const now = new Date()
-  const hoursUntilFirst = intervalMode === 'random' 
-    ? Math.random() * 4 + 1 // 1-5 hours for random
-    : 1 // 1 hour for fixed
+  const hoursUntilFirst = Math.random() * 4 + 1 // 1-5 hours for random
   
   return new Date(now.getTime() + hoursUntilFirst * 60 * 60 * 1000)
 }
