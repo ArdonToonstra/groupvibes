@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/db'
-import { groups, users, pushSubscriptions, userGroups } from '@/db/schema'
-import { lte, isNotNull, isNull, eq, inArray } from 'drizzle-orm'
+import { groups, users, userGroups } from '@/db/schema'
+import { lte, isNotNull, isNull, eq } from 'drizzle-orm'
 import { 
   sendNotification,
   calculateNextPingTime, 
   initializeNextPingTime,
   isInQuietHours,
   canSendNotification,
-  getMinHoursBetweenNotifications,
   type PushPayload 
 } from '@/lib/web-push'
 
