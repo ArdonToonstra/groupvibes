@@ -1,8 +1,14 @@
 import { z } from 'zod'
-import { eq } from 'drizzle-orm'
+import { eq, and } from 'drizzle-orm'
 import { createTRPCRouter, protectedProcedure } from '../trpc'
 import { pushSubscriptions, users } from '@/db/schema'
 import { sendNotification } from '@/lib/web-push'
+import { TRPCError } from '@trpc/server'
+
+// Rate limiting for test notifications (in production, use Redis)
+const testPushRateLimit = new Map<string, { count: number; resetAt: number }>()
+const RATE_LIMIT_WINDOW_MS = 60000 // 1 minute
+const RATE_LIMIT_MAX_REQUESTS = 5
 
 /**
  * Check if a hostname ends with or equals a given domain
@@ -58,46 +64,63 @@ export const pushRouter = createTRPCRouter({
   // Subscribe to push notifications
   subscribe: protectedProcedure
     .input(z.object({
-      endpoint: z.string(),
-      p256dh: z.string(),
-      auth: z.string(),
+      endpoint: z.string().url(),
+      p256dh: z.string().min(1),
+      auth: z.string().min(1),
     }))
     .mutation(async ({ ctx, input }) => {
-      // Check if subscription already exists
-      const existing = await ctx.db.query.pushSubscriptions.findFirst({
-        where: eq(pushSubscriptions.endpoint, input.endpoint),
-      })
-
-      if (existing) {
-        // Update existing subscription with current session ID
-        await ctx.db.update(pushSubscriptions)
-          .set({
+      // Use upsert pattern with onConflictDoUpdate to prevent race conditions
+      // This is atomic and avoids TOCTOU issues
+      await ctx.db
+        .insert(pushSubscriptions)
+        .values({
+          userId: ctx.user.id,
+          sessionId: ctx.session.session.id,
+          endpoint: input.endpoint,
+          p256dh: input.p256dh,
+          auth: input.auth,
+        })
+        .onConflictDoUpdate({
+          target: pushSubscriptions.endpoint,
+          set: {
             userId: ctx.user.id,
             sessionId: ctx.session.session.id,
             p256dh: input.p256dh,
             auth: input.auth,
             updatedAt: new Date(),
-          })
-          .where(eq(pushSubscriptions.endpoint, input.endpoint))
-        return { success: true, message: 'Subscription updated' }
-      }
-
-      await ctx.db.insert(pushSubscriptions).values({
-        userId: ctx.user.id,
-        sessionId: ctx.session.session.id, // Link to current session for auto-cleanup on logout
-        endpoint: input.endpoint,
-        p256dh: input.p256dh,
-        auth: input.auth,
-      })
+          },
+        })
 
       return { success: true }
     }),
 
   // Send a test notification to the current user
   sendTest: protectedProcedure.mutation(async ({ ctx }) => {
+    const userId = ctx.user.id
+    const now = Date.now()
+
+    // Rate limiting check
+    const rateLimit = testPushRateLimit.get(userId)
+    if (rateLimit) {
+      if (now < rateLimit.resetAt) {
+        if (rateLimit.count >= RATE_LIMIT_MAX_REQUESTS) {
+          throw new TRPCError({
+            code: 'TOO_MANY_REQUESTS',
+            message: 'Too many test notifications. Please wait a minute before trying again.',
+          })
+        }
+        rateLimit.count++
+      } else {
+        // Window expired, reset
+        testPushRateLimit.set(userId, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS })
+      }
+    } else {
+      testPushRateLimit.set(userId, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS })
+    }
+
     // Get all subscriptions for this user
     const subs = await ctx.db.query.pushSubscriptions.findMany({
-      where: eq(pushSubscriptions.userId, ctx.user.id),
+      where: eq(pushSubscriptions.userId, userId),
     })
 
     if (subs.length === 0) {
@@ -107,6 +130,7 @@ export const pushRouter = createTRPCRouter({
     let sent = 0
     let failed = 0
     let lastError: string | undefined
+    const expiredSubIds: number[] = []
 
     for (const sub of subs) {
       const result = await sendNotification(sub, {
@@ -122,10 +146,34 @@ export const pushRouter = createTRPCRouter({
       } else {
         failed++
         lastError = result.error
+        
+        // Auto-cleanup: if subscription is expired (410 Gone), mark for deletion
+        if (result.error?.includes('410') || result.error?.includes('expired') || result.error?.includes('unsubscribed')) {
+          expiredSubIds.push(sub.id)
+        }
       }
     }
 
-    return { success: sent > 0, sent, failed, error: sent > 0 ? undefined : (lastError ?? 'All notifications failed') }
+    // Clean up expired subscriptions
+    if (expiredSubIds.length > 0) {
+      for (const subId of expiredSubIds) {
+        await ctx.db.delete(pushSubscriptions).where(
+          and(
+            eq(pushSubscriptions.id, subId),
+            eq(pushSubscriptions.userId, userId) // Extra safety check
+          )
+        )
+      }
+      console.log(`[Push] Auto-cleaned ${expiredSubIds.length} expired subscription(s) for user ${userId}`)
+    }
+
+    return { 
+      success: sent > 0, 
+      sent, 
+      failed, 
+      cleaned: expiredSubIds.length,
+      error: sent > 0 ? undefined : (lastError ?? 'All notifications failed') 
+    }
   }),
 
   // Unsubscribe from push notifications
