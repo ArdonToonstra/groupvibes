@@ -5,36 +5,50 @@ import { pushSubscriptions, users } from '@/db/schema'
 import { sendNotification } from '@/lib/web-push'
 
 /**
+ * Check if a hostname ends with or equals a given domain
+ * This is safe because it validates the actual hostname, not arbitrary URL parts
+ */
+function hostMatchesDomain(hostname: string, domain: string): boolean {
+  return hostname === domain || hostname.endsWith('.' + domain)
+}
+
+/**
  * Extract device/browser info from push subscription endpoint
+ * Uses proper URL parsing to avoid substring matching vulnerabilities
  */
 function extractDeviceInfo(endpoint: string): { browser: string; platform: string } {
-  const url = endpoint.toLowerCase()
-  
   let browser = 'Unknown'
   let platform = 'Unknown'
   
-  // Detect browser from endpoint URL
-  if (url.includes('fcm.googleapis.com') || url.includes('firebase')) {
-    browser = 'Chrome/Edge'
-  } else if (url.includes('mozilla.com') || url.includes('push.services.mozilla.com')) {
-    browser = 'Firefox'
-  } else if (url.includes('apple.com') || url.includes('push.apple.com')) {
-    browser = 'Safari'
-    platform = 'Apple'
-  } else if (url.includes('windows.com') || url.includes('wns.')) {
-    browser = 'Edge'
-    platform = 'Windows'
+  try {
+    const parsedUrl = new URL(endpoint)
+    const hostname = parsedUrl.hostname.toLowerCase()
+    
+    // Detect browser from endpoint hostname using safe domain matching
+    if (hostMatchesDomain(hostname, 'fcm.googleapis.com') || 
+        hostMatchesDomain(hostname, 'firebase.google.com') ||
+        hostMatchesDomain(hostname, 'firebaseinstallations.googleapis.com')) {
+      browser = 'Chrome/Edge'
+    } else if (hostMatchesDomain(hostname, 'push.services.mozilla.com') ||
+               hostMatchesDomain(hostname, 'updates.push.services.mozilla.com')) {
+      browser = 'Firefox'
+    } else if (hostMatchesDomain(hostname, 'push.apple.com') ||
+               hostMatchesDomain(hostname, 'web.push.apple.com')) {
+      browser = 'Safari'
+      platform = 'Apple'
+    } else if (hostMatchesDomain(hostname, 'notify.windows.com') ||
+               hostMatchesDomain(hostname, 'wns.windows.com')) {
+      browser = 'Edge'
+      platform = 'Windows'
+    }
+  } catch {
+    // Invalid URL, return unknown
+    return { browser: 'Unknown', platform: 'Unknown' }
   }
   
-  // Try to infer platform from endpoint patterns
+  // Default platform for web browsers
   if (platform === 'Unknown') {
-    if (url.includes('android')) {
-      platform = 'Android'
-    } else if (url.includes('ios') || url.includes('apple')) {
-      platform = 'iOS'
-    } else {
-      platform = 'Desktop/Web'
-    }
+    platform = 'Desktop/Web'
   }
   
   return { browser, platform }
