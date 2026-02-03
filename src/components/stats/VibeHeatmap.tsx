@@ -9,9 +9,10 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 
 interface VibeHeatmapProps {
     checkins: any[]
+    onDayClick?: (date: Date) => void
 }
 
-export function VibeHeatmap({ checkins }: VibeHeatmapProps) {
+export function VibeHeatmap({ checkins, onDayClick }: VibeHeatmapProps) {
     const [currentMonth, setCurrentMonth] = useState(new Date())
 
     const days = useMemo(() => {
@@ -91,16 +92,18 @@ export function VibeHeatmap({ checkins }: VibeHeatmapProps) {
                         const dayKey = format(day, 'yyyy-MM-dd')
                         const stat = dailyStats[dayKey]
                         const isCurrentMonth = isSameMonth(day, currentMonth)
+                        const hasCheckins = !!stat
 
                         return (
                             <Tooltip key={day.toString()}>
                                 <TooltipTrigger asChild>
                                     <div
+                                        onClick={() => hasCheckins && onDayClick?.(day)}
                                         className={`
-                                            aspect-square rounded-md flex items-center justify-center text-xs cursor-default transition-all relative
+                                            aspect-square rounded-md flex items-center justify-center text-xs transition-all relative
                                             ${getDayColor(day)}
                                             ${!isCurrentMonth ? 'opacity-30' : ''}
-                                            ${stat ? 'hover:scale-105 shadow-sm border border-black/5 dark:border-white/5' : ''}
+                                            ${hasCheckins ? 'hover:scale-105 shadow-sm border border-black/5 dark:border-white/5 cursor-pointer' : 'cursor-default'}
                                         `}
                                     >
                                         <span className={`

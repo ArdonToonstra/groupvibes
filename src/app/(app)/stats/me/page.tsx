@@ -9,12 +9,14 @@ import { useState, useEffect } from "react"
 import { CheckinCard } from "@/components/stats/CheckinCard"
 import { StatsView } from "@/components/stats/StatsView"
 import { VibeHeatmap } from "@/components/stats/VibeHeatmap"
+import { DayCheckinsModal } from "@/components/stats/DayCheckinsModal"
 import { trpc } from "@/lib/trpc"
 import { useSession } from "@/lib/auth-client"
 
 export default function MyStatsPage() {
     const router = useRouter()
     const [activeTab, setActiveTab] = useState<'feed' | 'insights' | 'heatmap'>('feed')
+    const [selectedDay, setSelectedDay] = useState<Date | null>(null)
     const { data: session } = useSession()
     const currentUserId = session?.user?.id
 
@@ -83,11 +85,22 @@ export default function MyStatsPage() {
                             <StatsView checkins={checkins} />
                         )}
                         {activeTab === 'heatmap' && (
-                            <VibeHeatmap checkins={checkins} />
+                            <VibeHeatmap 
+                                checkins={checkins} 
+                                onDayClick={(date) => setSelectedDay(date)}
+                            />
                         )}
                     </>
                 )}
             </div>
+
+            <DayCheckinsModal
+                isOpen={!!selectedDay}
+                onClose={() => setSelectedDay(null)}
+                date={selectedDay}
+                checkins={checkins}
+                currentUserId={currentUserId}
+            />
         </div>
     )
 }
