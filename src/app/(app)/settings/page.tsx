@@ -466,6 +466,10 @@ function SettingsContent() {
     const handleAdminSettingsSave = async (field: string, value: any) => {
         if (!isOwnerOfSelectedGroup || !group) return
 
+        // Snapshot the current state before optimistic update
+        const previousGroup = { ...group }
+        const previousAllGroups = [...allGroups]
+
         // Update local state immediately for responsive UI
         setGroup({ ...group, [field]: value })
         
@@ -486,6 +490,9 @@ function SettingsContent() {
             }, 2000)
         } catch (e) {
             console.error(e)
+            // Revert optimistic updates on error
+            setGroup(previousGroup)
+            setAllGroups(previousAllGroups)
             setSaveStatus(prev => prev.field === field ? { ...prev, status: 'idle' } : prev)
         }
     }
