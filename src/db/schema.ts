@@ -128,8 +128,8 @@ export const checkIns = pgTable('check_ins', {
 export const pushSubscriptions = pgTable('push_subscriptions', {
   id: serial('id').primaryKey(),
   userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  sessionId: text('session_id').references(() => sessions.id, { onDelete: 'cascade' }), // Auto-cleanup when session expires/revoked
-  endpoint: text('endpoint').notNull(),
+  sessionId: text('session_id').references(() => sessions.id, { onDelete: 'set null' }),
+  endpoint: text('endpoint').notNull().unique(),
   p256dh: text('p256dh').notNull(),
   auth: text('auth').notNull(),
   createdAt: timestamp('created_at').notNull().defaultNow(),
