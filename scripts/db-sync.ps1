@@ -4,9 +4,9 @@
 $ErrorActionPreference = "Stop"
 
 # Configuration
-$ContainerName = "groupvibes-db"
+$ContainerName = "statelink-db"
 $LocalDbUser = "postgres"
-$LocalDbName = "groupvibes"
+$LocalDbName = "statelink"
 $BackupDir = "backups"
 
 # Create backup directory if it doesn't exist

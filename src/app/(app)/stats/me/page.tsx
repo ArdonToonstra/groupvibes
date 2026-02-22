@@ -20,9 +20,21 @@ export default function MyStatsPage() {
     const { data: session } = useSession()
     const currentUserId = session?.user?.id
 
-    const { data, isLoading, error } = trpc.checkIns.list.useQuery({ scope: 'user' }, {
-        retry: false,
-    })
+    const { data: pageData, isLoading: pageLoading, error, fetchNextPage, hasNextPage, isFetchingNextPage } = trpc.checkIns.list.useInfiniteQuery(
+        { scope: 'user', limit: 50 },
+        {
+            getNextPageParam: (lastPage) => lastPage.nextCursor,
+            retry: false,
+        }
+    )
+
+    const { data: fullData, isLoading: fullLoading } = trpc.checkIns.list.useQuery(
+        { scope: 'user' },
+        {
+            enabled: activeTab !== 'feed',
+            retry: false,
+        }
+    )
 
     useEffect(() => {
         if (error?.data?.code === 'UNAUTHORIZED') {
@@ -30,8 +42,12 @@ export default function MyStatsPage() {
         }
     }, [error, router])
 
-    const checkins = data?.docs || []
-    const loading = isLoading
+    const checkinsFeed = pageData?.pages.flatMap(page => page.docs) || []
+    const checkinsFull = fullData?.docs || []
+    const loading = pageLoading || (activeTab !== 'feed' && fullLoading)
+
+    // We only show empty state if the current view's data is empty
+    const isEmpty = activeTab === 'feed' ? checkinsFeed.length === 0 : checkinsFull.length === 0
 
     const tabToggle = (
         <div className="flex bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
@@ -70,23 +86,36 @@ export default function MyStatsPage() {
             <div className="max-w-2xl mx-auto p-4 space-y-6">
                 {loading ? (
                     <LoadingSpinner message="Loading history..." fullScreen={false} />
-                ) : checkins.length === 0 ? (
+                ) : isEmpty ? (
                     <div className="text-center text-gray-400 py-10">No check-ins found.</div>
                 ) : (
                     <>
                         {activeTab === 'feed' && (
                             <div className="space-y-4">
-                                {checkins.map((checkin) => (
+                                {checkinsFeed.map((checkin) => (
                                     <CheckinCard key={checkin.id} checkin={checkin} showUser={true} currentUserId={currentUserId} />
                                 ))}
+
+                                {hasNextPage && (
+                                    <div className="pt-4 pb-8 flex justify-center">
+                                        <Button
+                                            variant="outline"
+                                            onClick={() => fetchNextPage()}
+                                            disabled={isFetchingNextPage}
+                                            className="w-full sm:w-auto bg-white dark:bg-gray-800"
+                                        >
+                                            {isFetchingNextPage ? 'Loading more...' : 'Load More'}
+                                        </Button>
+                                    </div>
+                                )}
                             </div>
                         )}
                         {activeTab === 'insights' && (
-                            <StatsView checkins={checkins} />
+                            <StatsView checkins={checkinsFull} />
                         )}
                         {activeTab === 'heatmap' && (
-                            <VibeHeatmap 
-                                checkins={checkins} 
+                            <VibeHeatmap
+                                checkins={checkinsFull}
                                 onDayClick={(date) => setSelectedDay(date)}
                             />
                         )}
@@ -98,7 +127,7 @@ export default function MyStatsPage() {
                 isOpen={!!selectedDay}
                 onClose={() => setSelectedDay(null)}
                 date={selectedDay}
-                checkins={checkins}
+                checkins={checkinsFull.length > 0 ? checkinsFull : checkinsFeed}
                 currentUserId={currentUserId}
             />
         </div>

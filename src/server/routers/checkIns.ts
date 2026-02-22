@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { eq, desc, and, gt, isNull, or, sql, inArray } from 'drizzle-orm'
+import { eq, desc, and, gt, lt, isNull, or, sql, inArray } from 'drizzle-orm'
 import { createTRPCRouter, protectedProcedure } from '../trpc'
 import { checkIns, userGroups, users } from '@/db/schema'
 
@@ -12,6 +12,8 @@ export const checkInsRouter = createTRPCRouter({
     .input(z.object({
       scope: z.enum(['user', 'group']).default('user'),
       groupId: z.string().optional(), // Optional: specific group, otherwise uses activeGroupId
+      cursor: z.string().optional(), // ISO timestamp
+      limit: z.number().min(1).max(100).optional(),
     }).optional())
     .query(async ({ ctx, input }) => {
       const scope = input?.scope ?? 'user'
@@ -55,33 +57,64 @@ export const checkInsRouter = createTRPCRouter({
         // Include check-ins that are either:
         // 1. Specifically for this group (groupId matches)
         // 2. Shared globally (groupId is null)
+        const limit = input?.limit
+        const cursorDate = input?.cursor ? new Date(input.cursor) : undefined
+
+        const conditions = [inArray(checkIns.userId, memberIds)]
+        conditions.push(
+          or(
+            eq(checkIns.groupId, targetGroupId),
+            isNull(checkIns.groupId)
+          ) as any
+        )
+
+        if (cursorDate) {
+          conditions.push(lt(checkIns.createdAt, cursorDate))
+        }
+
         const results = await ctx.db.query.checkIns.findMany({
-          where: and(
-            inArray(checkIns.userId, memberIds),
-            or(
-              eq(checkIns.groupId, targetGroupId),
-              isNull(checkIns.groupId)
-            )
-          ),
+          where: and(...conditions),
           orderBy: desc(checkIns.createdAt),
+          limit: limit ? limit + 1 : undefined,
           with: {
             user: true,
           },
         })
 
-        return { docs: results, totalDocs: results.length }
+        let nextCursor: string | undefined = undefined
+        if (limit && results.length > limit) {
+          const nextItem = results.pop()
+          nextCursor = nextItem?.createdAt.toISOString()
+        }
+
+        return { docs: results, totalDocs: results.length, nextCursor }
+      }
+
+      const limit = input?.limit
+      const cursorDate = input?.cursor ? new Date(input.cursor) : undefined
+
+      const conditions = [eq(checkIns.userId, ctx.user.id)]
+      if (cursorDate) {
+        conditions.push(lt(checkIns.createdAt, cursorDate))
       }
 
       // Default: user's own check-ins
       const results = await ctx.db.query.checkIns.findMany({
-        where: eq(checkIns.userId, ctx.user.id),
+        where: and(...conditions),
         orderBy: desc(checkIns.createdAt),
+        limit: limit ? limit + 1 : undefined,
         with: {
           user: true,
         },
       })
 
-      return { docs: results, totalDocs: results.length }
+      let nextCursor: string | undefined = undefined
+      if (limit && results.length > limit) {
+        const nextItem = results.pop()
+        nextCursor = nextItem?.createdAt.toISOString()
+      }
+
+      return { docs: results, totalDocs: results.length, nextCursor }
     }),
 
   // Create a check-in (associated with active group unless sharing globally)
